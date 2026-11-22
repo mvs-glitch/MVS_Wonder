@@ -85,28 +85,29 @@ def format_display_date(date_str):
         return str(date_str)
 
 
-def inject_colorful_responsive_css():
+def inject_clean_white_theme_css():
     st.markdown(
         """
         <style>
-        /* Eye-friendly soft sage-mist background & crisp dark black text */
-        .stApp {
-            background: linear-gradient(180deg, #edf4f0 0%, #e3ede8 100%);
-            color: #111827;
+        html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+            background-color: #ffffff !important;
+            color: #111827 !important;
         }
 
-        .stApp, .stApp p, .stApp span, .stApp label, .stApp div, .stApp li {
-            color: #111827;
+        .stApp p, .stApp span, .stApp label, .stApp div, .stApp li, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5 {
+            color: #111827 !important;
         }
 
         .block-container {
             padding-top: 1.1rem;
             padding-bottom: 2.2rem;
             max-width: 100%;
+            background-color: #ffffff !important;
         }
 
         .depot-header-banner {
-            background: linear-gradient(90deg, #0f3d3e 0%, #165b5d 55%, #1d7374 100%);
+            background-color: #f8fafc;
+            border: 1.5px solid #cbd5e1;
             padding: 14px 20px;
             border-radius: 10px;
             display: flex;
@@ -115,31 +116,33 @@ def inject_colorful_responsive_css():
             flex-wrap: wrap;
             gap: 10px;
             margin-bottom: 14px;
-            box-shadow: 0 4px 12px rgba(15, 61, 62, 0.18);
         }
 
         .depot-header-title {
-            color: #ffffff !important;
+            color: #111827 !important;
             font-size: 21px;
             font-weight: 800;
             letter-spacing: 0.4px;
         }
 
         .depot-header-role {
-            background: rgba(255, 255, 255, 0.2);
-            color: #ffffff !important;
+            background-color: #ffffff;
+            color: #111827 !important;
             font-size: 12.5px;
             font-weight: 700;
             padding: 5px 12px;
             border-radius: 999px;
-            border: 1px solid rgba(255, 255, 255, 0.35);
+            border: 1.5px solid #94a3b8;
         }
 
         .section-card-title {
-            background: linear-gradient(90deg, #d7ebe3 0%, #e5eff5 100%);
+            background-color: #f8fafc;
             color: #111827 !important;
             padding: 8px 14px;
-            border-left: 5px solid #165b5d;
+            border-left: 5px solid #111827;
+            border-top: 1px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
             border-radius: 6px;
             font-weight: 800;
             margin: 10px 0 10px 0;
@@ -147,21 +150,22 @@ def inject_colorful_responsive_css():
 
         .stTabs [data-baseweb="tab-list"] {
             gap: 8px;
-            background-color: #f8fbf9;
+            background-color: #ffffff !important;
             padding: 6px;
             border-radius: 10px;
-            border: 1px solid #c7d9d1;
+            border: 1px solid #cbd5e1;
         }
 
         .stTabs [data-baseweb="tab"] {
             border-radius: 8px;
             padding: 8px 16px;
             font-weight: 700;
+            background-color: #ffffff !important;
             color: #111827 !important;
         }
 
         .stTabs [aria-selected="true"] {
-            background: linear-gradient(90deg, #165b5d 0%, #1d7374 100%) !important;
+            background-color: #111827 !important;
             color: #ffffff !important;
         }
 
@@ -170,50 +174,78 @@ def inject_colorful_responsive_css():
             color: #ffffff !important;
         }
 
-        /* Input fields crisp dark black text on light surface */
-        input, textarea, select {
+        /* Clean white inputs & selects with dark black text */
+        input, textarea, select,
+        div[data-baseweb="input"] > div,
+        div[data-baseweb="select"] > div {
+            background-color: #ffffff !important;
             color: #111827 !important;
+            border-color: #94a3b8 !important;
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: #4b5563 !important;
+            opacity: 1 !important;
         }
 
         div[data-testid="stVerticalBlockBorderWrapper"] {
-            background-color: #ffffff;
+            background-color: #ffffff !important;
             border-radius: 10px;
-            border: 1px solid #b8cec4 !important;
-            box-shadow: 0 2px 8px rgba(17, 24, 39, 0.06);
+            border: 1.5px solid #94a3b8 !important;
         }
 
         div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
-            border: 1px solid #8faea1;
+            border: 1px solid #cbd5e1;
             padding: 6px 8px;
             display: flex;
             align-items: center;
-            background-color: #ffffff;
+            background-color: #ffffff !important;
             color: #111827 !important;
         }
 
-        /* Distinct high-contrast Approve button styling */
-        .approve-action-wrapper button {
-            background: linear-gradient(90deg, #009e49 0%, #00b856 100%) !important;
+        /* Standard buttons: clean white surface with dark black text */
+        .stButton > button,
+        .stDownloadButton > button,
+        button[kind="primary"],
+        button[kind="secondary"] {
+            background-color: #ffffff !important;
+            color: #111827 !important;
+            border: 1.5px solid #374151 !important;
+            border-radius: 8px;
+            font-weight: 700 !important;
+        }
+
+        .stButton > button *,
+        .stDownloadButton > button * {
+            color: #111827 !important;
+        }
+
+        .stButton > button:hover,
+        .stDownloadButton > button:hover {
+            background-color: #f1f5f9 !important;
+            color: #111827 !important;
+        }
+
+        /* Medium red Approve button with white bold text */
+        .approve-action-wrapper button,
+        .approve-action-wrapper [data-testid="stBaseButton-secondary"],
+        .approve-action-wrapper [data-testid="stBaseButton-primary"] {
+            background-color: #d93829 !important;
             color: #ffffff !important;
-            border: 2px solid #006e33 !important;
+            border: 1.5px solid #b52b1e !important;
             font-weight: 800 !important;
         }
 
-        .approve-action-wrapper button:hover {
-            background: linear-gradient(90deg, #007e3a 0%, #009947 100%) !important;
+        .approve-action-wrapper button *,
+        .approve-action-wrapper button p,
+        .approve-action-wrapper button span,
+        .approve-action-wrapper button div {
             color: #ffffff !important;
         }
 
-        .stButton > button, .stDownloadButton > button {
-            border-radius: 8px;
-            font-weight: 700;
-            color: #111827;
-            transition: transform 0.12s ease, box-shadow 0.12s ease;
-        }
-
-        .stButton > button:hover, .stDownloadButton > button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 3px 8px rgba(17, 24, 39, 0.14);
+        .approve-action-wrapper button:hover {
+            background-color: #b82b1e !important;
+            color: #ffffff !important;
         }
 
         @media (max-width: 768px) {
@@ -725,7 +757,7 @@ def _new_a4_page(depot, disp_date):
         (margin_x, top_y, margin_x + table_w, top_y + depot_h),
         outline="#000000",
         width=4,
-        fill="#d7ebe3",
+        fill="#ffffff",
     )
     _draw_centered_text(
         draw,
@@ -806,11 +838,11 @@ def build_a4_pages(depot, report_date, d_df, i_df, summary_df):
     # ---------------- DISPATCH (OUT) ----------------
     ensure_space(gap_h + section_h + header_h + row_h)
     y += gap_h
-    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=3, fill="#e2f1ea")
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=3, fill="#ffffff")
     _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "DISPATCH (OUT)", f_sec)
     y += section_h
 
-    _draw_row(draw, x_left, y, col4, header_h, ["Party", "Bag", "Brand", "Truck"], f_sec, fill="#f1f8f5")
+    _draw_row(draw, x_left, y, col4, header_h, ["Party", "Bag", "Brand", "Truck"], f_sec, fill="#ffffff")
     y += header_h
 
     if d_df.empty:
@@ -833,11 +865,11 @@ def build_a4_pages(depot, report_date, d_df, i_df, summary_df):
     # ---------------- INWARD TRUCKS (IN) ----------------
     ensure_space(gap_h + section_h + header_h + row_h)
     y += gap_h
-    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=3, fill="#dcebf2")
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=3, fill="#ffffff")
     _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "INWARD TRUCKS (IN)", f_sec)
     y += section_h
 
-    _draw_row(draw, x_left, y, col4, header_h, ["Truck", "Bag", "Brand", "RoadLine"], f_sec, fill="#eff6f9")
+    _draw_row(draw, x_left, y, col4, header_h, ["Truck", "Bag", "Brand", "RoadLine"], f_sec, fill="#ffffff")
     y += header_h
 
     if i_df.empty:
@@ -861,15 +893,14 @@ def build_a4_pages(depot, report_date, d_df, i_df, summary_df):
     needed_summary = gap_h + section_h + header_h + (len(summary_df) * row_h)
     ensure_space(needed_summary)
     y += gap_h
-    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=3, fill="#e4e9f2")
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=3, fill="#ffffff")
     _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "BRAND STOCK SUMMARY", f_sec)
     y += section_h
 
-    _draw_row(draw, x_left, y, col5, header_h, ["Brand", "OP-ST", "In", "Out", "Total"], f_sec, fill="#f3f5f9")
+    _draw_row(draw, x_left, y, col5, header_h, ["Brand", "OP-ST", "In", "Out", "Total"], f_sec, fill="#ffffff")
     y += header_h
 
     for _, r in summary_df.iterrows():
-        row_fill = "#fff6d6" if str(r["Brand"]) == "Grand Total" else "#ffffff"
         _draw_row(
             draw,
             x_left,
@@ -878,7 +909,7 @@ def build_a4_pages(depot, report_date, d_df, i_df, summary_df):
             row_h,
             [r["Brand"], r["OP-ST"], r["In"], r["Out"], r["Total"]],
             f_body,
-            fill=row_fill,
+            fill="#ffffff",
         )
         y += row_h
 
@@ -970,7 +1001,7 @@ def show_login():
 
 def main():
     st.set_page_config(page_title="Depot Report System", layout="wide")
-    inject_colorful_responsive_css()
+    inject_clean_white_theme_css()
     conn = get_connection()
 
     if "user" not in st.session_state:
@@ -1101,9 +1132,8 @@ def main():
                     ap_h6.markdown("**Status**")
                     ap_h7.markdown("**Delete**")
 
-                    for row_idx, (_, prow) in enumerate(pend_rows_admin.iterrows()):
+                    for _, prow in pend_rows_admin.iterrows():
                         p_id = int(prow["id"])
-                        row_bg = "#fff4cc" if row_idx % 2 == 0 else "#ffe8cc"
                         c_dt, c_pt, c_bg, c_br, c_tr, c_st, c_dl = st.columns(
                             [1.2, 2.2, 0.9, 1.1, 1.5, 1.1, 1.2]
                         )
@@ -1112,10 +1142,7 @@ def main():
                         c_bg.write(str(prow["Bag"]))
                         c_br.write(prow["Brand"])
                         c_tr.write(prow["Truck"])
-                        c_st.markdown(
-                            f'<span style="background:{row_bg};color:#111827;padding:3px 8px;border-radius:6px;font-weight:800;font-size:12px;">{prow["Status"]}</span>',
-                            unsafe_allow_html=True,
-                        )
+                        c_st.write(prow["Status"])
                         if c_dl.button("Delete", key=f"del_pend_{p_id}", use_container_width=True):
                             delete_pending_by_id(conn, p_id, depot, report_date)
                             st.success(f"Pending entry ({prow['Party']} - {prow['Truck']}) delete ho gayi.")
@@ -1146,30 +1173,14 @@ def main():
                     ph5.markdown("**Truck**")
                     ph6.markdown("**Approve**")
 
-                    for row_idx, (_, prow) in enumerate(pend_rows.iterrows()):
+                    for _, prow in pend_rows.iterrows():
                         p_id = int(prow["id"])
-                        row_shade = "#e6f6ec" if row_idx % 2 == 0 else "#e6f1fa"
                         c_dt, c_pt, c_bg, c_br, c_tr, c_ap = st.columns([1.4, 2.6, 1.0, 1.2, 1.8, 1.4])
-                        c_dt.markdown(
-                            f'<div style="background:{row_shade};color:#111827;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Date"]}</div>',
-                            unsafe_allow_html=True,
-                        )
-                        c_pt.markdown(
-                            f'<div style="background:{row_shade};color:#111827;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Party"]}</div>',
-                            unsafe_allow_html=True,
-                        )
-                        c_bg.markdown(
-                            f'<div style="background:{row_shade};color:#111827;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Bag"]}</div>',
-                            unsafe_allow_html=True,
-                        )
-                        c_br.markdown(
-                            f'<div style="background:{row_shade};color:#111827;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Brand"]}</div>',
-                            unsafe_allow_html=True,
-                        )
-                        c_tr.markdown(
-                            f'<div style="background:{row_shade};color:#111827;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Truck"]}</div>',
-                            unsafe_allow_html=True,
-                        )
+                        c_dt.write(prow["Date"])
+                        c_pt.write(prow["Party"])
+                        c_bg.write(str(prow["Bag"]))
+                        c_br.write(prow["Brand"])
+                        c_tr.write(prow["Truck"])
                         with c_ap:
                             st.markdown('<div class="approve-action-wrapper" style="width:100%;">', unsafe_allow_html=True)
                             clicked_approve = st.button(
@@ -1400,7 +1411,7 @@ def main():
     with b_print:
         st.markdown(
             """
-            <button onclick="window.print()" style="width:100%;padding:0.45rem 0.75rem;background:linear-gradient(90deg,#165b5d 0%,#1d7374 100%);color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;">
+            <button onclick="window.print()" style="width:100%;padding:0.45rem 0.75rem;background-color:#ffffff;color:#111827;border:1.5px solid #374151;border-radius:8px;font-weight:700;cursor:pointer;">
                 Print Report
             </button>
             """,
