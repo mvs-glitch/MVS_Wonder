@@ -4337,7 +4337,7 @@ def main():
         # root = tk.Tk()
 
         app = DepotControllerApp(
-            root
+            # root
         )
 
         root.protocol(
