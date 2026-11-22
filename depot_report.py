@@ -85,19 +85,24 @@ def format_display_date(date_str):
         return str(date_str)
 
 
-def inject_ocean_fresh_css():
+def inject_ocean_fresh_no_black_bg_css():
     st.markdown(
         """
         <style>
-        /* Ocean Fresh Theme: BG #ECFDF5 (Mint White), Button #0284C7 (Sky Blue), Font #0F172A (Dark Slate) */
-        html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        /* Ocean Fresh Theme: BG #ECFDF5 (Mint White), Button #0284C7 (Sky Blue), Font #000000 (Black) */
+        html, body, .stApp,
+        [data-testid="stAppViewContainer"],
+        [data-testid="stHeader"],
+        [data-testid="stDecoration"],
+        [data-testid="stToolbar"],
+        [data-testid="stBottomBlockContainer"] {
             background-color: #ECFDF5 !important;
-            color: #0F172A !important;
+            color: #000000 !important;
         }
 
         .stApp p, .stApp span, .stApp label, .stApp div, .stApp li,
-        .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5 {
-            color: #0F172A !important;
+        .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
+            color: #000000 !important;
         }
 
         .block-container {
@@ -108,8 +113,8 @@ def inject_ocean_fresh_css():
         }
 
         .depot-header-banner {
-            background-color: #FFFFFF;
-            border: 1.5px solid #7DD3FC;
+            background-color: #FFFFFF !important;
+            border: 1.5px solid #0284C7;
             padding: 14px 20px;
             border-radius: 10px;
             display: flex;
@@ -121,15 +126,15 @@ def inject_ocean_fresh_css():
         }
 
         .depot-header-title {
-            color: #0F172A !important;
+            color: #000000 !important;
             font-size: 21px;
             font-weight: 800;
             letter-spacing: 0.4px;
         }
 
         .depot-header-role {
-            background-color: #E0F2FE;
-            color: #0F172A !important;
+            background-color: #E0F2FE !important;
+            color: #000000 !important;
             font-size: 12.5px;
             font-weight: 700;
             padding: 5px 12px;
@@ -138,8 +143,8 @@ def inject_ocean_fresh_css():
         }
 
         .section-card-title {
-            background-color: #FFFFFF;
-            color: #0F172A !important;
+            background-color: #FFFFFF !important;
+            color: #000000 !important;
             padding: 8px 14px;
             border-left: 5px solid #0284C7;
             border-top: 1px solid #A7F3D0;
@@ -155,7 +160,7 @@ def inject_ocean_fresh_css():
             background-color: #FFFFFF !important;
             padding: 6px;
             border-radius: 10px;
-            border: 1px solid #A7F3D0;
+            border: 1px solid #0284C7;
         }
 
         .stTabs [data-baseweb="tab"] {
@@ -163,7 +168,7 @@ def inject_ocean_fresh_css():
             padding: 8px 16px;
             font-weight: 700;
             background-color: #ECFDF5 !important;
-            color: #0F172A !important;
+            color: #000000 !important;
         }
 
         .stTabs [aria-selected="true"] {
@@ -176,40 +181,77 @@ def inject_ocean_fresh_css():
             color: #FFFFFF !important;
         }
 
-        /* Clean white inputs & selects with #0F172A Dark Slate text */
-        input, textarea, select,
+        /* Remove dark/black backgrounds on all inputs, number inputs, date inputs & selects */
+        [data-testid="stTextInput"] div,
+        [data-testid="stNumberInput"] div,
+        [data-testid="stDateInput"] div,
+        [data-testid="stSelectbox"] div,
+        [data-testid="stFileUploader"] section,
+        [data-testid="stExpander"] details,
+        [data-testid="stExpander"] summary,
+        [data-testid="stForm"],
+        div[data-baseweb="input"],
         div[data-baseweb="input"] > div,
-        div[data-baseweb="select"] > div {
+        div[data-baseweb="base-input"],
+        div[data-baseweb="select"],
+        div[data-baseweb="select"] > div,
+        div[data-baseweb="popover"],
+        ul[role="listbox"],
+        li[role="option"] {
             background-color: #FFFFFF !important;
-            color: #0F172A !important;
-            border-color: #64748B !important;
+            color: #000000 !important;
+        }
+
+        input, textarea, select {
+            background-color: #FFFFFF !important;
+            color: #000000 !important;
+            caret-color: #000000 !important;
+            border-color: #0284C7 !important;
         }
 
         input::placeholder, textarea::placeholder {
-            color: #475569 !important;
+            color: #334155 !important;
             opacity: 1 !important;
+        }
+
+        [data-testid="stNumberInput"] button {
+            background-color: #E0F2FE !important;
+            color: #000000 !important;
+            border-color: #0284C7 !important;
+        }
+
+        [data-testid="stNumberInput"] button * {
+            color: #000000 !important;
+        }
+
+        [data-testid="stDataFrame"],
+        [data-testid="stTable"] {
+            background-color: #FFFFFF !important;
+            color: #000000 !important;
         }
 
         div[data-testid="stVerticalBlockBorderWrapper"] {
             background-color: #FFFFFF !important;
             border-radius: 10px;
-            border: 1.5px solid #7DD3FC !important;
+            border: 1.5px solid #0284C7 !important;
         }
 
         div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
-            border: 1px solid #CBD5E1;
+            border: 1px solid #A7F3D0;
             padding: 6px 8px;
             display: flex;
             align-items: center;
             background-color: #FFFFFF !important;
-            color: #0F172A !important;
+            color: #000000 !important;
         }
 
-        /* Ocean Fresh Sky Blue (#0284C7) buttons with crisp white text */
+        /* Ocean Fresh Sky Blue (#0284C7) buttons with white text (never black) */
         .stButton > button,
         .stDownloadButton > button,
         button[kind="primary"],
-        button[kind="secondary"] {
+        button[kind="secondary"],
+        button[data-testid="stBaseButton-primary"],
+        button[data-testid="stBaseButton-secondary"] {
             background-color: #0284C7 !important;
             color: #FFFFFF !important;
             border: 1.5px solid #0369A1 !important;
@@ -709,7 +751,7 @@ def compute_summary_rows(conn, depot, report_date, p_op, pl_op, x_op):
     return pd.DataFrame(rows)
 
 
-def _draw_centered_text(draw, box, text, font, fill="#0F172A"):
+def _draw_centered_text(draw, box, text, font, fill="#000000"):
     x0, y0, x1, y1 = box
     bbox = draw.textbbox((0, 0), str(text), font=font)
     tw = bbox[2] - bbox[0]
@@ -723,8 +765,8 @@ def _draw_row(draw, x_left, y, col_widths, row_h, values, font, fill="#FFFFFF"):
     cur_x = x_left
     for idx, w in enumerate(col_widths):
         box = (cur_x, y, cur_x + w, y + row_h)
-        draw.rectangle(box, outline="#0F172A", width=3, fill=fill)
-        _draw_centered_text(draw, box, values[idx], font, fill="#0F172A")
+        draw.rectangle(box, outline="#0284C7", width=3, fill=fill)
+        _draw_centered_text(draw, box, values[idx], font, fill="#000000")
         cur_x += w
 
 
@@ -740,7 +782,7 @@ def _new_a4_page(depot, disp_date):
     depot_h = 100
     draw.rectangle(
         (margin_x, top_y, margin_x + table_w, top_y + depot_h),
-        outline="#0F172A",
+        outline="#0284C7",
         width=4,
         fill="#ECFDF5",
     )
@@ -749,7 +791,7 @@ def _new_a4_page(depot, disp_date):
         (margin_x, top_y, margin_x + table_w, top_y + depot_h),
         f"DEPOT : {depot}",
         f_title,
-        fill="#0F172A",
+        fill="#000000",
     )
 
     meta_y = top_y + depot_h
@@ -757,7 +799,7 @@ def _new_a4_page(depot, disp_date):
 
     draw.rectangle(
         (margin_x, meta_y, margin_x + table_w, meta_y + meta_h),
-        outline="#0F172A",
+        outline="#0284C7",
         width=4,
         fill="#FFFFFF",
     )
@@ -782,7 +824,7 @@ def _stamp_page_numbers(pages):
             footer_box,
             f"Page {idx} of {total_p}",
             f_small,
-            fill="#0F172A",
+            fill="#000000",
         )
 
 
@@ -823,7 +865,7 @@ def build_a4_pages(depot, report_date, d_df, i_df, summary_df):
     # ---------------- DISPATCH (OUT) ----------------
     ensure_space(gap_h + section_h + header_h + row_h)
     y += gap_h
-    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#0F172A", width=3, fill="#ECFDF5")
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#0284C7", width=3, fill="#ECFDF5")
     _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "DISPATCH (OUT)", f_sec)
     y += section_h
 
@@ -850,7 +892,7 @@ def build_a4_pages(depot, report_date, d_df, i_df, summary_df):
     # ---------------- INWARD TRUCKS (IN) ----------------
     ensure_space(gap_h + section_h + header_h + row_h)
     y += gap_h
-    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#0F172A", width=3, fill="#E0F2FE")
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#0284C7", width=3, fill="#E0F2FE")
     _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "INWARD TRUCKS (IN)", f_sec)
     y += section_h
 
@@ -878,7 +920,7 @@ def build_a4_pages(depot, report_date, d_df, i_df, summary_df):
     needed_summary = gap_h + section_h + header_h + (len(summary_df) * row_h)
     ensure_space(needed_summary)
     y += gap_h
-    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#0F172A", width=3, fill="#ECFDF5")
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#0284C7", width=3, fill="#ECFDF5")
     _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "BRAND STOCK SUMMARY", f_sec)
     y += section_h
 
@@ -987,7 +1029,7 @@ def show_login():
 
 def main():
     st.set_page_config(page_title="Depot Report System", layout="wide")
-    inject_ocean_fresh_css()
+    inject_ocean_fresh_no_black_bg_css()
     conn = get_connection()
 
     if "user" not in st.session_state:
@@ -1125,27 +1167,27 @@ def main():
                             [1.2, 2.2, 0.9, 1.1, 1.5, 1.1, 1.2]
                         )
                         c_dt.markdown(
-                            f'<div style="background:{row_shade};color:#0F172A;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Date"]}</div>',
+                            f'<div style="background:{row_shade};color:#000000;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Date"]}</div>',
                             unsafe_allow_html=True,
                         )
                         c_pt.markdown(
-                            f'<div style="background:{row_shade};color:#0F172A;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Party"]}</div>',
+                            f'<div style="background:{row_shade};color:#000000;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Party"]}</div>',
                             unsafe_allow_html=True,
                         )
                         c_bg.markdown(
-                            f'<div style="background:{row_shade};color:#0F172A;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Bag"]}</div>',
+                            f'<div style="background:{row_shade};color:#000000;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Bag"]}</div>',
                             unsafe_allow_html=True,
                         )
                         c_br.markdown(
-                            f'<div style="background:{row_shade};color:#0F172A;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Brand"]}</div>',
+                            f'<div style="background:{row_shade};color:#000000;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Brand"]}</div>',
                             unsafe_allow_html=True,
                         )
                         c_tr.markdown(
-                            f'<div style="background:{row_shade};color:#0F172A;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Truck"]}</div>',
+                            f'<div style="background:{row_shade};color:#000000;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Truck"]}</div>',
                             unsafe_allow_html=True,
                         )
                         c_st.markdown(
-                            f'<div style="background:{row_shade};color:#0F172A;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Status"]}</div>',
+                            f'<div style="background:{row_shade};color:#000000;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Status"]}</div>',
                             unsafe_allow_html=True,
                         )
                         if c_dl.button("Delete", key=f"del_pend_{p_id}", use_container_width=True):
@@ -1183,23 +1225,23 @@ def main():
                         row_shade = "#ECFDF5" if row_idx % 2 == 0 else "#E0F2FE"
                         c_dt, c_pt, c_bg, c_br, c_tr, c_ap = st.columns([1.4, 2.6, 1.0, 1.2, 1.8, 1.4])
                         c_dt.markdown(
-                            f'<div style="background:{row_shade};color:#0F172A;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Date"]}</div>',
+                            f'<div style="background:{row_shade};color:#000000;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Date"]}</div>',
                             unsafe_allow_html=True,
                         )
                         c_pt.markdown(
-                            f'<div style="background:{row_shade};color:#0F172A;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Party"]}</div>',
+                            f'<div style="background:{row_shade};color:#000000;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Party"]}</div>',
                             unsafe_allow_html=True,
                         )
                         c_bg.markdown(
-                            f'<div style="background:{row_shade};color:#0F172A;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Bag"]}</div>',
+                            f'<div style="background:{row_shade};color:#000000;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Bag"]}</div>',
                             unsafe_allow_html=True,
                         )
                         c_br.markdown(
-                            f'<div style="background:{row_shade};color:#0F172A;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Brand"]}</div>',
+                            f'<div style="background:{row_shade};color:#000000;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Brand"]}</div>',
                             unsafe_allow_html=True,
                         )
                         c_tr.markdown(
-                            f'<div style="background:{row_shade};color:#0F172A;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Truck"]}</div>',
+                            f'<div style="background:{row_shade};color:#000000;padding:4px 6px;border-radius:4px;width:100%;font-weight:700;">{prow["Truck"]}</div>',
                             unsafe_allow_html=True,
                         )
                         clicked_approve = c_ap.button(
