@@ -96,6 +96,7 @@ def get_connection():
             ppc_op INTEGER DEFAULT 0,
             plus_op INTEGER DEFAULT 0,
             xtreme_op INTEGER DEFAULT 0,
+            op_set INTEGER DEFAULT 0,
             PRIMARY KEY (depot, report_date)
         )
         """
@@ -146,55 +147,155 @@ def get_connection():
         """
     )
 
-    # Ensure approved_by exists on older databases
     cur.execute("PRAGMA table_info(dispatch_entries)")
-    existing_cols = [row[1] for row in cur.fetchall()]
-    if "approved_by" not in existing_cols:
-        cur.execute(
-            "ALTER TABLE dispatch_entries ADD COLUMN approved_by TEXT DEFAULT ''"
-        )
+    d_cols = [row[1] for row in cur.fetchall()]
+    if "approved_by" not in d_cols:
+        cur.execute("ALTER TABLE dispatch_entries ADD COLUMN approved_by TEXT DEFAULT ''")
+
+    cur.execute("PRAGMA table_info(report_meta)")
+    m_cols = [row[1] for row in cur.fetchall()]
+    if "op_set" not in m_cols:
+        cur.execute("ALTER TABLE report_meta ADD COLUMN op_set INTEGER DEFAULT 0")
 
     conn.commit()
     return conn
 
 
-def ensure_meta(conn, depot, report_date, report_no):
+def _brand_in_out_for_date(conn, depot, target_date):
     cur = conn.cursor()
     cur.execute(
         """
-        INSERT OR IGNORE INTO report_meta
-        (depot, report_date, report_no, ppc_op, plus_op, xtreme_op)
-        VALUES (?, ?, ?, 0, 0, 0)
+        SELECT brand, COALESCE(SUM(bag), 0)
+        FROM inward_entries
+        WHERE depot = ? AND report_date = ?
+        GROUP BY brand
         """,
-        (depot, report_date, report_no or "85"),
+        (depot, target_date),
     )
-    conn.commit()
+    in_map = {row[0]: int(row[1] or 0) for row in cur.fetchall()}
+
+    cur.execute(
+        """
+        SELECT brand, COALESCE(SUM(bag), 0)
+        FROM dispatch_entries
+        WHERE depot = ? AND report_date = ?
+        GROUP BY brand
+        """,
+        (depot, target_date),
+    )
+    out_map = {row[0]: int(row[1] or 0) for row in cur.fetchall()}
+    return in_map, out_map
+
+
+def _closing_stock_for_date(conn, depot, target_date):
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT ppc_op, plus_op, xtreme_op, op_set
+        FROM report_meta
+        WHERE depot = ? AND report_date = ?
+        """,
+        (depot, target_date),
+    )
+    meta = cur.fetchone()
+    p_op = int(meta[0] or 0) if meta else 0
+    pl_op = int(meta[1] or 0) if meta else 0
+    x_op = int(meta[2] or 0) if meta else 0
+
+    in_map, out_map = _brand_in_out_for_date(conn, depot, target_date)
+    p_close = p_op + in_map.get("PPC", 0) - out_map.get("PPC", 0)
+    pl_close = pl_op + in_map.get("PLUS", 0) - out_map.get("PLUS", 0)
+    x_close = x_op + in_map.get("Xtreme", 0) - out_map.get("Xtreme", 0)
+    return p_close, pl_close, x_close
+
+
+def get_previous_closing_stock(conn, depot, report_date):
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT report_date
+        FROM report_meta
+        WHERE depot = ? AND report_date < ?
+        ORDER BY report_date DESC
+        LIMIT 1
+        """,
+        (depot, report_date),
+    )
+    prev_meta = cur.fetchone()
+    prev_meta_date = prev_meta[0] if prev_meta else None
+
+    cur.execute(
+        """
+        SELECT MAX(dt) FROM (
+            SELECT report_date AS dt FROM dispatch_entries WHERE depot = ? AND report_date < ?
+            UNION
+            SELECT report_date AS dt FROM inward_entries WHERE depot = ? AND report_date < ?
+        )
+        """,
+        (depot, report_date, depot, report_date),
+    )
+    prev_tx = cur.fetchone()
+    prev_tx_date = prev_tx[0] if prev_tx and prev_tx[0] else None
+
+    candidates = [d for d in [prev_meta_date, prev_tx_date] if d]
+    if not candidates:
+        return 0, 0, 0
+
+    latest_prev_date = max(candidates)
+    return _closing_stock_for_date(conn, depot, latest_prev_date)
 
 
 def load_meta(conn, depot, report_date):
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT report_no, ppc_op, plus_op, xtreme_op
+        SELECT report_no, ppc_op, plus_op, xtreme_op, op_set
         FROM report_meta
         WHERE depot = ? AND report_date = ?
         """,
         (depot, report_date),
     )
     row = cur.fetchone()
+
     if row:
-        return row[0] or "85", int(row[1] or 0), int(row[2] or 0), int(row[3] or 0)
-    return "85", 0, 0, 0
+        r_no = row[0] or "85"
+        op_set = int(row[4] or 0)
+        if op_set == 1:
+            return r_no, int(row[1] or 0), int(row[2] or 0), int(row[3] or 0)
+
+        prev_p, prev_pl, prev_x = get_previous_closing_stock(conn, depot, report_date)
+        cur.execute(
+            """
+            UPDATE report_meta
+            SET ppc_op = ?, plus_op = ?, xtreme_op = ?, op_set = 1
+            WHERE depot = ? AND report_date = ?
+            """,
+            (prev_p, prev_pl, prev_x, depot, report_date),
+        )
+        conn.commit()
+        return r_no, prev_p, prev_pl, prev_x
+
+    prev_p, prev_pl, prev_x = get_previous_closing_stock(conn, depot, report_date)
+    cur.execute(
+        """
+        INSERT INTO report_meta
+        (depot, report_date, report_no, ppc_op, plus_op, xtreme_op, op_set)
+        VALUES (?, ?, '85', ?, ?, ?, 1)
+        """,
+        (depot, report_date, prev_p, prev_pl, prev_x),
+    )
+    conn.commit()
+    return "85", prev_p, prev_pl, prev_x
 
 
 def save_meta(conn, depot, report_date, report_no, p_op, pl_op, x_op, is_admin):
-    ensure_meta(conn, depot, report_date, report_no)
+    load_meta(conn, depot, report_date)
     cur = conn.cursor()
     if is_admin:
         cur.execute(
             """
             UPDATE report_meta
-            SET report_no = ?, ppc_op = ?, plus_op = ?, xtreme_op = ?
+            SET report_no = ?, ppc_op = ?, plus_op = ?, xtreme_op = ?, op_set = 1
             WHERE depot = ? AND report_date = ?
             """,
             (report_no or "85", p_op, pl_op, x_op, depot, report_date),
@@ -212,6 +313,7 @@ def save_meta(conn, depot, report_date, report_no, p_op, pl_op, x_op, is_admin):
 
 
 def submit_party_for_approval(conn, depot, report_date, party, bag, brand, truck, user_id):
+    load_meta(conn, depot, report_date)
     cur = conn.cursor()
     cur.execute(
         """
@@ -225,6 +327,7 @@ def submit_party_for_approval(conn, depot, report_date, party, bag, brand, truck
 
 
 def approve_pending_entry(conn, pending_id, depot, report_date, approver_id):
+    load_meta(conn, depot, report_date)
     cur = conn.cursor()
     try:
         cur.execute(
@@ -285,6 +388,7 @@ def delete_inward_by_id(conn, entry_id, depot, report_date):
 
 
 def import_excel_file(conn, uploaded_file, depot, report_date, is_admin, user_id):
+    load_meta(conn, depot, report_date)
     cur = conn.cursor()
     imported_d = 0
     imported_i = 0
@@ -373,29 +477,7 @@ def import_excel_file(conn, uploaded_file, depot, report_date, is_admin, user_id
 
 
 def compute_summary_rows(conn, depot, report_date, p_op, pl_op, x_op):
-    cur = conn.cursor()
-
-    cur.execute(
-        """
-        SELECT brand, COALESCE(SUM(bag), 0)
-        FROM inward_entries
-        WHERE depot = ? AND report_date = ?
-        GROUP BY brand
-        """,
-        (depot, report_date),
-    )
-    in_map = {row[0]: int(row[1] or 0) for row in cur.fetchall()}
-
-    cur.execute(
-        """
-        SELECT brand, COALESCE(SUM(bag), 0)
-        FROM dispatch_entries
-        WHERE depot = ? AND report_date = ?
-        GROUP BY brand
-        """,
-        (depot, report_date),
-    )
-    out_map = {row[0]: int(row[1] or 0) for row in cur.fetchall()}
+    in_map, out_map = _brand_in_out_for_date(conn, depot, report_date)
 
     rows = []
     tot_op = tot_in = tot_out = tot_bal = 0
@@ -741,374 +823,4 @@ def main():
 
     with r1:
         if is_admin:
-            depot = st.selectbox("Depot", DEPOTS, label_visibility="collapsed")
-        else:
-            st.text_input("Depot", value=assigned_depot, disabled=True, label_visibility="collapsed")
-            depot = assigned_depot
-
-    with r2:
-        selected_date = st.date_input("Date", value=date.today(), label_visibility="collapsed")
-        report_date = str(selected_date)
-
-    default_r_no, db_p_op, db_pl_op, db_x_op = load_meta(conn, depot, report_date)
-
-    with r3:
-        report_no = st.text_input("Report No", value=default_r_no, label_visibility="collapsed")
-
-    ensure_meta(conn, depot, report_date, report_no)
-
-    with r4:
-        if st.button("LOGOUT", use_container_width=True):
-            st.session_state.user = None
-            st.rerun()
-
-    # Admin-only Import Section
-    if is_admin:
-        with st.expander("ADMIN IMPORT EXCEL", expanded=False):
-            imp_file = st.file_uploader(
-                "Upload Excel (.xlsx)",
-                type=["xlsx"],
-                key="admin_excel_uploader",
-            )
-            if st.button("IMPORT EXCEL"):
-                if imp_file is not None:
-                    d_cnt, i_cnt = import_excel_file(
-                        conn, imp_file, depot, report_date, is_admin, user_id
-                    )
-                    st.success(
-                        f"Import complete: Party entries sent for approval ({d_cnt}), Inward ({i_cnt}) saved."
-                    )
-                    st.rerun()
-                else:
-                    st.warning("Pehle Excel (.xlsx) file select karein.")
-
-    tab1, tab2, tab3 = st.tabs(
-        ["1. Dispatch / OUT", "2. Inward Trucks / IN", "3. Brand Stock Summary"]
-    )
-
-    with tab1:
-        if is_admin:
-            st.markdown("#### Add Party Dispatch Entry (Admin Only - Goes for Depot Incharge Approval)")
-            with st.form("party_dispatch_form", clear_on_submit=True):
-                d1, d2, d3, d4, d5 = st.columns([3, 1, 1.5, 2, 1.5])
-                party = d1.text_input("Party", placeholder="Party name")
-                bag_val = d2.number_input("Bag", min_value=1, step=1, value=1)
-                brand = d3.selectbox("Brand", PRODUCTS, key="d_brand")
-                truck = d4.text_input("Truck", placeholder="Truck no")
-                add_d = d5.form_submit_button("SEND FOR APPROVAL", use_container_width=True)
-
-            if add_d:
-                if not party.strip():
-                    st.warning("Party ka naam enter karein.")
-                else:
-                    submit_party_for_approval(
-                        conn, depot, report_date, party, bag_val, brand, truck, user_id
-                    )
-                    st.success("Party entry bhej di gayi hai. Depot Incharge ke Approve karne ke baad save hogi.")
-                    st.rerun()
-
-            pend_df_admin = pd.read_sql_query(
-                """
-                SELECT report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck, status AS Status
-                FROM pending_party_entries
-                WHERE depot = ? AND report_date = ? AND status = 'PENDING'
-                ORDER BY id DESC
-                """,
-                conn,
-                params=(depot, report_date),
-            )
-            st.markdown("##### Pending Party Entries (Awaiting Depot Incharge Approval)")
-            st.dataframe(pend_df_admin, use_container_width=True, hide_index=True)
-
-        else:
-            st.markdown("#### Approve Party Entries (Depot Incharge Only)")
-            pend_rows = pd.read_sql_query(
-                """
-                SELECT id, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
-                FROM pending_party_entries
-                WHERE depot = ? AND report_date = ? AND status = 'PENDING'
-                ORDER BY id DESC
-                """,
-                conn,
-                params=(depot, report_date),
-            )
-
-            if pend_rows.empty:
-                st.info("Is date ke liye koi pending party entry nahi hai.")
-            else:
-                ph1, ph2, ph3, ph4, ph5, ph6 = st.columns([1.4, 2.6, 1.0, 1.2, 1.8, 1.4])
-                ph1.markdown("**Date**")
-                ph2.markdown("**Party**")
-                ph3.markdown("**Bag**")
-                ph4.markdown("**Brand**")
-                ph5.markdown("**Truck**")
-                ph6.markdown("**Approve**")
-
-                for _, prow in pend_rows.iterrows():
-                    p_id = int(prow["id"])
-                    c_dt, c_pt, c_bg, c_br, c_tr, c_ap = st.columns([1.4, 2.6, 1.0, 1.2, 1.8, 1.4])
-                    c_dt.write(prow["Date"])
-                    c_pt.write(prow["Party"])
-                    c_bg.write(str(prow["Bag"]))
-                    c_br.write(prow["Brand"])
-                    c_tr.write(prow["Truck"])
-                    if c_ap.button("Approve", key=f"approve_btn_{p_id}", use_container_width=True):
-                        if approve_pending_entry(conn, p_id, depot, report_date, user_id):
-                            st.success(f"{prow['Party']} ({prow['Truck']}) approve ho kar save ho gayi.")
-                            st.rerun()
-                        else:
-                            st.error("Entry approve nahi ho saki.")
-
-        st.markdown("##### Approved & Saved Dispatch Entries (Latest Top)")
-        d_rows = pd.read_sql_query(
-            """
-            SELECT id, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
-            FROM dispatch_entries
-            WHERE depot = ? AND report_date = ?
-            ORDER BY id DESC
-            """,
-            conn,
-            params=(depot, report_date),
-        )
-
-        if d_rows.empty:
-            st.info("Is date ke liye koi approved dispatch entry nahi hai.")
-        else:
-            if is_admin:
-                dh1, dh2, dh3, dh4, dh5, dh6 = st.columns([1.4, 2.6, 1.0, 1.2, 1.8, 1.4])
-                dh1.markdown("**Date**")
-                dh2.markdown("**Party**")
-                dh3.markdown("**Bag**")
-                dh4.markdown("**Brand**")
-                dh5.markdown("**Truck**")
-                dh6.markdown("**Delete**")
-
-                for _, drow in d_rows.iterrows():
-                    d_id = int(drow["id"])
-                    c_dt, c_pt, c_bg, c_br, c_tr, c_dl = st.columns([1.4, 2.6, 1.0, 1.2, 1.8, 1.4])
-                    c_dt.write(drow["Date"])
-                    c_pt.write(drow["Party"])
-                    c_bg.write(str(drow["Bag"]))
-                    c_br.write(drow["Brand"])
-                    c_tr.write(drow["Truck"])
-                    if c_dl.button("Delete", key=f"del_disp_{d_id}", use_container_width=True):
-                        delete_dispatch_by_id(conn, d_id, depot, report_date)
-                        st.rerun()
-            else:
-                st.dataframe(
-                    d_rows[["Date", "Party", "Bag", "Brand", "Truck"]],
-                    use_container_width=True,
-                    hide_index=True,
-                )
-
-    with tab2:
-        st.markdown("#### Add Inward Truck / In")
-        with st.form("inward_form", clear_on_submit=True):
-            i1, i2, i3, i4, i5 = st.columns([2, 1, 1.5, 3, 1.5])
-            in_truck = i1.text_input("Truck", placeholder="Truck no", key="i_truck")
-            in_bag = i2.number_input("Bag", min_value=1, step=1, value=1, key="i_bag")
-            in_brand = i3.selectbox("Brand", PRODUCTS, key="i_brand")
-            roadline = i4.text_input("RoadLine", placeholder="RoadLine / From")
-            add_i = i5.form_submit_button("ADD INWARD", use_container_width=True)
-
-        if add_i:
-            if not in_truck.strip():
-                st.warning("Truck number enter karein.")
-            else:
-                cur = conn.cursor()
-                cur.execute(
-                    """
-                    INSERT INTO inward_entries (depot, report_date, truck, bag, brand, roadline)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """,
-                    (depot, report_date, in_truck.strip(), int(in_bag), in_brand, roadline.strip()),
-                )
-                conn.commit()
-                st.rerun()
-
-        i_rows = pd.read_sql_query(
-            """
-            SELECT id, report_date AS Date, truck AS Truck, bag AS Bag, brand AS Brand, roadline AS RoadLine
-            FROM inward_entries
-            WHERE depot = ? AND report_date = ?
-            ORDER BY id DESC
-            """,
-            conn,
-            params=(depot, report_date),
-        )
-
-        if i_rows.empty:
-            st.info("Is date ke liye koi inward entry nahi hai.")
-        else:
-            if is_admin:
-                ih1, ih2, ih3, ih4, ih5, ih6 = st.columns([1.4, 2.0, 1.0, 1.2, 2.4, 1.4])
-                ih1.markdown("**Date**")
-                ih2.markdown("**Truck**")
-                ih3.markdown("**Bag**")
-                ih4.markdown("**Brand**")
-                ih5.markdown("**RoadLine**")
-                ih6.markdown("**Delete**")
-
-                for _, irow in i_rows.iterrows():
-                    i_id = int(irow["id"])
-                    c_dt, c_tr, c_bg, c_br, c_rl, c_dl = st.columns([1.4, 2.0, 1.0, 1.2, 2.4, 1.4])
-                    c_dt.write(irow["Date"])
-                    c_tr.write(irow["Truck"])
-                    c_bg.write(str(irow["Bag"]))
-                    c_br.write(irow["Brand"])
-                    c_rl.write(irow["RoadLine"])
-                    if c_dl.button("Delete", key=f"del_inw_{i_id}", use_container_width=True):
-                        delete_inward_by_id(conn, i_id, depot, report_date)
-                        st.rerun()
-            else:
-                st.dataframe(
-                    i_rows[["Date", "Truck", "Bag", "Brand", "RoadLine"]],
-                    use_container_width=True,
-                    hide_index=True,
-                )
-
-    with tab3:
-        st.markdown(
-            "#### BRAND STOCK SUMMARY - ADMIN EDIT OP-ST"
-            if is_admin
-            else "#### BRAND STOCK SUMMARY - OP-ST LOCKED"
-        )
-
-        with st.form("meta_form"):
-            m1, m2, m3 = st.columns(3)
-            p_op = m1.number_input(
-                "Wonder PPC OP-ST", value=db_p_op, step=1, disabled=not is_admin
-            )
-            pl_op = m2.number_input(
-                "Wonder PLUS OP-ST", value=db_pl_op, step=1, disabled=not is_admin
-            )
-            x_op = m3.number_input(
-                "Wonder Xtreme OP-ST", value=db_x_op, step=1, disabled=not is_admin
-            )
-            save_btn = st.form_submit_button("Save Report Details / OP-ST")
-
-        if save_btn:
-            save_meta(
-                conn,
-                depot,
-                report_date,
-                report_no,
-                int(p_op),
-                int(pl_op),
-                int(x_op),
-                is_admin,
-            )
-            st.success("Report details save ho gayi.")
-            st.rerun()
-
-        summary_df = compute_summary_rows(
-            conn, depot, report_date, int(p_op), int(pl_op), int(x_op)
-        )
-        st.dataframe(summary_df, use_container_width=True, hide_index=True)
-
-    # ========================================================
-    # REPORT GENERATE, PRINT & EXPORT SECTION (DATE SELECTABLE)
-    # ========================================================
-    st.divider()
-    st.markdown("### Generate & Print Report")
-
-    gen_c1, gen_c2 = st.columns([2, 4])
-    with gen_c1:
-        gen_date_input = st.date_input(
-            "Select Report Date to Generate",
-            value=selected_date,
-            key="report_generate_date",
-        )
-        gen_date = str(gen_date_input)
-
-    gen_r_no, gen_p_op, gen_pl_op, gen_x_op = load_meta(conn, depot, gen_date)
-
-    d_df_gen = pd.read_sql_query(
-        """
-        SELECT party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
-        FROM dispatch_entries
-        WHERE depot = ? AND report_date = ?
-        ORDER BY id DESC
-        """,
-        conn,
-        params=(depot, gen_date),
-    )
-    i_df_gen = pd.read_sql_query(
-        """
-        SELECT truck AS Truck, bag AS Bag, brand AS Brand, roadline AS RoadLine
-        FROM inward_entries
-        WHERE depot = ? AND report_date = ?
-        ORDER BY id DESC
-        """,
-        conn,
-        params=(depot, gen_date),
-    )
-    summary_df_gen = compute_summary_rows(
-        conn, depot, gen_date, gen_p_op, gen_pl_op, gen_x_op
-    )
-
-    a4_pages = build_a4_pages(
-        depot, gen_r_no, gen_date, d_df_gen, i_df_gen, summary_df_gen
-    )
-
-    with gen_c2:
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(
-            f"**Report Date:** {format_display_date(gen_date)} ({gen_date}) | "
-            f"**Depot:** {depot} | **A4 Pages:** {len(a4_pages)}"
-        )
-
-    b_print, b_excel, b_jpg, b_pdf = st.columns([1.4, 1.4, 1.5, 1.4])
-
-    with b_print:
-        st.markdown(
-            """
-            <button onclick="window.print()" style="width:100%;padding:0.45rem 0.75rem;background-color:#2e7d32;color:white;border:none;border-radius:0.5rem;font-weight:600;cursor:pointer;">
-                Print Report
-            </button>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    with b_excel:
-        excel_bytes = build_excel_bytes(
-            depot, gen_r_no, gen_date, d_df_gen, i_df_gen, summary_df_gen
-        )
-        st.download_button(
-            label="Export Excel",
-            data=excel_bytes,
-            file_name=f"{depot}_{gen_date}_report.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
-        )
-
-    with b_jpg:
-        if len(a4_pages) == 1:
-            st.download_button(
-                label="Export JPG (A4)",
-                data=pages_to_jpg_bytes(a4_pages[0]),
-                file_name=f"{depot}_{gen_date}_A4_page_1.jpg",
-                mime="image/jpeg",
-                use_container_width=True,
-            )
-        else:
-            st.download_button(
-                label=f"Export JPG ({len(a4_pages)} Pages ZIP)",
-                data=pages_to_zip_bytes(a4_pages, depot, gen_date),
-                file_name=f"{depot}_{gen_date}_A4_pages.zip",
-                mime="application/zip",
-                use_container_width=True,
-            )
-
-    with b_pdf:
-        st.download_button(
-            label="Export PDF (A4)",
-            data=pages_to_pdf_bytes(a4_pages),
-            file_name=f"{depot}_{gen_date}_A4_report.pdf",
-            mime="application/pdf",
-            use_container_width=True,
-        )
-
-
-if __name__ == "__main__":
-    main()
+            depot = st
