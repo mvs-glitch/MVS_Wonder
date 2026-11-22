@@ -902,6 +902,19 @@ def main():
         else:
             with st.container(border=True):
                 st.markdown("#### Approve Party Entries (Depot Incharge Only)")
+                st.markdown(
+                    """
+                    <style>
+                    div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+                        border: 1px solid rgba(128, 128, 128, 0.45);
+                        padding: 6px 8px;
+                        display: flex;
+                        align-items: center;
+                    }
+                    </style>
+                    """,
+                    unsafe_allow_html=True,
+                )
                 pend_rows = pd.read_sql_query(
                     """
                     SELECT id, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
