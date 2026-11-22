@@ -44,7 +44,7 @@ USERS = {
 }
 
 
-def get_fonts(title_size=54, section_size=38, body_size=32, small_size=28):
+def get_fonts(title_size=250, section_size=100, body_size=100, small_size=100):
     bold_candidates = [
         r"C:\Windows\Fonts\arialbd.ttf",
         r"C:\Windows\Fonts\calibrib.ttf",
