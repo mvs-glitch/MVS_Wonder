@@ -1,6 +1,7 @@
 import io
 import os
 import sqlite3
+import time
 import zipfile
 from datetime import date, datetime
 import pandas as pd
@@ -9,6 +10,9 @@ import streamlit as st
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(APP_DIR, "depot_data.db")
+
+# 15 minutes inactivity timeout (15 * 60 = 900 seconds)
+SESSION_TIMEOUT_SECONDS = 15 * 60
 
 # Standard A4 at 300 DPI (210mm x 297mm)
 A4_WIDTH = 2480
@@ -79,6 +83,86 @@ def format_display_date(date_str):
         return dt_obj.strftime("%d-%b-%y")
     except Exception:
         return str(date_str)
+
+
+def inject_responsive_css():
+    st.markdown(
+        """
+        <style>
+        .block-container {
+            padding-top: 1.2rem;
+            padding-bottom: 2rem;
+            max-width: 100%;
+        }
+
+        .depot-header-banner {
+            background-color: #0d47a1;
+            padding: 12px 18px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .depot-header-title {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .depot-header-role {
+            color: #e3f2fd;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+            border: 1px solid rgba(128, 128, 128, 0.45);
+            padding: 6px 8px;
+            display: flex;
+            align-items: center;
+        }
+
+        @media (max-width: 768px) {
+            .depot-header-title {
+                font-size: 17px;
+            }
+            .depot-header-role {
+                font-size: 12px;
+            }
+            .stButton > button, .stDownloadButton > button {
+                min-height: 42px;
+                font-size: 14px;
+            }
+            div[data-testid="stHorizontalBlock"] {
+                flex-wrap: wrap !important;
+            }
+            div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+                flex: 1 1 100% !important;
+                width: 100% !important;
+                min-width: 100% !important;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def check_and_refresh_session():
+    now = time.time()
+    if st.session_state.get("user") is not None:
+        last_active = st.session_state.get("last_active_ts", now)
+        if (now - last_active) >= SESSION_TIMEOUT_SECONDS:
+            st.session_state.user = None
+            st.session_state.last_active_ts = None
+            st.session_state.session_expired_msg = True
+            st.rerun()
+        else:
+            st.session_state.last_active_ts = now
 
 
 @st.cache_resource
@@ -764,10 +848,14 @@ def build_excel_bytes(depot, report_no, report_date, d_df, i_df, summary_df):
 
 
 def show_login():
+    if st.session_state.get("session_expired_msg"):
+        st.warning("15 minute tak inactive rehne ke kaaran session logout ho gaya hai. Kripya dobara login karein.")
+        st.session_state.session_expired_msg = False
+
     st.markdown(
         """
-        <div style="background-color:#0d47a1;padding:12px 20px;border-radius:6px;margin-bottom:18px;">
-            <span style="color:white;font-size:22px;font-weight:bold;">DEPOT REPORT SYSTEM</span>
+        <div class="depot-header-banner">
+            <span class="depot-header-title">DEPOT REPORT SYSTEM</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -784,6 +872,7 @@ def show_login():
         pwd = pwd_input.strip()
         if uid in USERS and USERS[uid][0] == pwd:
             st.session_state.user = (uid, USERS[uid][1])
+            st.session_state.last_active_ts = time.time()
             st.rerun()
         else:
             st.error("Galat Login ID ya Password.")
@@ -791,10 +880,13 @@ def show_login():
 
 def main():
     st.set_page_config(page_title="Depot Report System", layout="wide")
+    inject_responsive_css()
     conn = get_connection()
 
     if "user" not in st.session_state:
         st.session_state.user = None
+
+    check_and_refresh_session()
 
     if not st.session_state.user:
         show_login()
@@ -810,9 +902,9 @@ def main():
 
     st.markdown(
         f"""
-        <div style="background-color:#0d47a1;padding:12px 20px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <span style="color:white;font-size:22px;font-weight:bold;">DEPOT REPORT SYSTEM</span>
-            <span style="color:#e3f2fd;font-size:13px;font-weight:bold;">{role_text}</span>
+        <div class="depot-header-banner">
+            <span class="depot-header-title">DEPOT REPORT SYSTEM</span>
+            <span class="depot-header-role">{role_text}</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -840,6 +932,7 @@ def main():
     with r4:
         if st.button("LOGOUT", use_container_width=True):
             st.session_state.user = None
+            st.session_state.last_active_ts = None
             st.rerun()
 
     if is_admin:
@@ -902,19 +995,6 @@ def main():
         else:
             with st.container(border=True):
                 st.markdown("#### Approve Party Entries (Depot Incharge Only)")
-                st.markdown(
-                    """
-                    <style>
-                    div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
-                        border: 1px solid rgba(128, 128, 128, 0.45);
-                        padding: 6px 8px;
-                        display: flex;
-                        align-items: center;
-                    }
-                    </style>
-                    """,
-                    unsafe_allow_html=True,
-                )
                 pend_rows = pd.read_sql_query(
                     """
                     SELECT id, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
