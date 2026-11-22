@@ -214,7 +214,7 @@ def main():
             else:
                 st.error("Galat Login ID ya Password.")
 
-        st.caption("Admin: admin / admin123")
+        # st.caption("Admin: admin / admin123")
         return
 
     user_id, assigned_depot = st.session_state.user
