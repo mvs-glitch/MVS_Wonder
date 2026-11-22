@@ -453,6 +453,15 @@ def approve_pending_entry(conn, pending_id, depot, report_date, approver_id):
         return False
 
 
+def delete_pending_by_id(conn, pending_id, depot, report_date):
+    cur = conn.cursor()
+    cur.execute(
+        "DELETE FROM pending_party_entries WHERE id = ? AND depot = ? AND report_date = ?",
+        (int(pending_id), depot, report_date),
+    )
+    conn.commit()
+
+
 def delete_dispatch_by_id(conn, entry_id, depot, report_date):
     cur = conn.cursor()
     cur.execute(
@@ -984,18 +993,48 @@ def main():
                     st.success("Party entry bhej di gayi hai. Depot Incharge ke Approve karne ke baad save hogi.")
                     st.rerun()
 
-            pend_df_admin = pd.read_sql_query(
-                """
-                SELECT report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck, status AS Status
-                FROM pending_party_entries
-                WHERE depot = ? AND report_date = ? AND status = 'PENDING'
-                ORDER BY id DESC
-                """,
-                conn,
-                params=(depot, report_date),
-            )
-            st.markdown("##### Pending Party Entries (Awaiting Depot Incharge Approval)")
-            st.dataframe(pend_df_admin, use_container_width=True, hide_index=True)
+            with st.container(border=True):
+                st.markdown("##### Pending Party Entries (Awaiting Depot Incharge Approval)")
+                pend_rows_admin = pd.read_sql_query(
+                    """
+                    SELECT id, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck, status AS Status
+                    FROM pending_party_entries
+                    WHERE depot = ? AND report_date = ? AND status = 'PENDING'
+                    ORDER BY id DESC
+                    """,
+                    conn,
+                    params=(depot, report_date),
+                )
+
+                if pend_rows_admin.empty:
+                    st.info("Is date ke liye koi pending party entry nahi hai.")
+                else:
+                    ap_h1, ap_h2, ap_h3, ap_h4, ap_h5, ap_h6, ap_h7 = st.columns(
+                        [1.2, 2.2, 0.9, 1.1, 1.5, 1.1, 1.2]
+                    )
+                    ap_h1.markdown("**Date**")
+                    ap_h2.markdown("**Party**")
+                    ap_h3.markdown("**Bag**")
+                    ap_h4.markdown("**Brand**")
+                    ap_h5.markdown("**Truck**")
+                    ap_h6.markdown("**Status**")
+                    ap_h7.markdown("**Delete**")
+
+                    for _, prow in pend_rows_admin.iterrows():
+                        p_id = int(prow["id"])
+                        c_dt, c_pt, c_bg, c_br, c_tr, c_st, c_dl = st.columns(
+                            [1.2, 2.2, 0.9, 1.1, 1.5, 1.1, 1.2]
+                        )
+                        c_dt.write(prow["Date"])
+                        c_pt.write(prow["Party"])
+                        c_bg.write(str(prow["Bag"]))
+                        c_br.write(prow["Brand"])
+                        c_tr.write(prow["Truck"])
+                        c_st.write(prow["Status"])
+                        if c_dl.button("Delete", key=f"del_pend_{p_id}", use_container_width=True):
+                            delete_pending_by_id(conn, p_id, depot, report_date)
+                            st.success(f"Pending entry ({prow['Party']} - {prow['Truck']}) delete ho gayi.")
+                            st.rerun()
 
         else:
             with st.container(border=True):
