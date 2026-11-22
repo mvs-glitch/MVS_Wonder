@@ -1,13 +1,18 @@
 import io
 import os
 import sqlite3
-from datetime import date
+import zipfile
+from datetime import date, datetime
 import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 import streamlit as st
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(APP_DIR, "depot_data.db")
+
+# Standard A4 at 300 DPI (210mm x 297mm)
+A4_WIDTH = 2480
+A4_HEIGHT = 3508
 
 DEPOTS = [
     "LNG",
@@ -39,7 +44,7 @@ USERS = {
 }
 
 
-def get_fonts(title_size=18, section_size=14, body_size=12, small_size=11):
+def get_fonts(title_size=44, section_size=30, body_size=26, small_size=24):
     bold_candidates = [
         r"C:\Windows\Fonts\arialbd.ttf",
         r"C:\Windows\Fonts\calibrib.ttf",
@@ -66,6 +71,14 @@ def get_fonts(title_size=18, section_size=14, body_size=12, small_size=11):
 
     fallback = ImageFont.load_default()
     return fallback, fallback, fallback, fallback
+
+
+def format_display_date(date_str):
+    try:
+        dt_obj = datetime.strptime(str(date_str), "%Y-%m-%d")
+        return dt_obj.strftime("%d-%b-%y")
+    except Exception:
+        return str(date_str)
 
 
 @st.cache_resource
@@ -128,7 +141,7 @@ def ensure_meta(conn, depot, report_date, report_no):
         (depot, report_date, report_no, ppc_op, plus_op, xtreme_op)
         VALUES (?, ?, ?, 0, 0, 0)
         """,
-        (depot, report_date, report_no or "84"),
+        (depot, report_date, report_no or "85"),
     )
     conn.commit()
 
@@ -145,8 +158,8 @@ def load_meta(conn, depot, report_date):
     )
     row = cur.fetchone()
     if row:
-        return row[0] or "84", int(row[1] or 0), int(row[2] or 0), int(row[3] or 0)
-    return "84", 0, 0, 0
+        return row[0] or "85", int(row[1] or 0), int(row[2] or 0), int(row[3] or 0)
+    return "85", 0, 0, 0
 
 
 def save_meta(conn, depot, report_date, report_no, p_op, pl_op, x_op, is_admin):
@@ -159,7 +172,7 @@ def save_meta(conn, depot, report_date, report_no, p_op, pl_op, x_op, is_admin):
             SET report_no = ?, ppc_op = ?, plus_op = ?, xtreme_op = ?
             WHERE depot = ? AND report_date = ?
             """,
-            (report_no or "84", p_op, pl_op, x_op, depot, report_date),
+            (report_no or "85", p_op, pl_op, x_op, depot, report_date),
         )
     else:
         cur.execute(
@@ -168,7 +181,7 @@ def save_meta(conn, depot, report_date, report_no, p_op, pl_op, x_op, is_admin):
             SET report_no = ?
             WHERE depot = ? AND report_date = ?
             """,
-            (report_no or "84", depot, report_date),
+            (report_no or "85", depot, report_date),
         )
     conn.commit()
 
@@ -248,7 +261,7 @@ def compute_summary_rows(conn, depot, report_date, p_op, pl_op, x_op):
 
     rows.append(
         {
-            "Brand": "TOTAL",
+            "Brand": "Grand Total",
             "OP-ST": tot_op,
             "In": tot_in,
             "Out": tot_out,
@@ -259,11 +272,234 @@ def compute_summary_rows(conn, depot, report_date, p_op, pl_op, x_op):
     return pd.DataFrame(rows)
 
 
+def _draw_centered_text(draw, box, text, font, fill="#000000"):
+    x0, y0, x1, y1 = box
+    bbox = draw.textbbox((0, 0), str(text), font=font)
+    tw = bbox[2] - bbox[0]
+    th = bbox[3] - bbox[1]
+    tx = x0 + (x1 - x0 - tw) / 2
+    ty = y0 + (y1 - y0 - th) / 2 - bbox[1]
+    draw.text((tx, ty), str(text), font=font, fill=fill)
+
+
+def _draw_row(draw, x_left, y, col_widths, row_h, values, font, bold_last=False):
+    cur_x = x_left
+    for idx, w in enumerate(col_widths):
+        box = (cur_x, y, cur_x + w, y + row_h)
+        draw.rectangle(box, outline="#000000", width=2, fill="#ffffff")
+        cell_font = font
+        _draw_centered_text(draw, box, values[idx], cell_font, fill="#000000")
+        cur_x += w
+
+
+def _new_a4_page(depot, report_no, disp_date, page_num, total_pages_hint=None):
+    f_title, f_sec, f_body, f_small = get_fonts()
+    img = Image.new("RGB", (A4_WIDTH, A4_HEIGHT), "#ffffff")
+    draw = ImageDraw.Draw(img)
+
+    margin_x = 90
+    top_y = 90
+    table_w = A4_WIDTH - (2 * margin_x)
+
+    # Top Depot Header Box
+    depot_h = 84
+    draw.rectangle(
+        (margin_x, top_y, margin_x + table_w, top_y + depot_h),
+        outline="#000000",
+        width=3,
+        fill="#ffffff",
+    )
+    page_suffix = f"  (Page {page_num})" if page_num > 1 else ""
+    _draw_centered_text(
+        draw,
+        (margin_x, top_y, margin_x + table_w, top_y + depot_h),
+        f"DEPOT : {depot}{page_suffix}",
+        f_title,
+        fill="#000000",
+    )
+
+    # Report No & Date Sub-header Box
+    meta_y = top_y + depot_h
+    meta_h = 74
+    w_lbl = int(table_w * 0.25)
+    w_no = int(table_w * 0.22)
+    w_dt = table_w - w_lbl - w_no
+
+    draw.rectangle((margin_x, meta_y, margin_x + w_lbl, meta_y + meta_h), outline="#000000", width=3, fill="#ffffff")
+    _draw_centered_text(draw, (margin_x, meta_y, margin_x + w_lbl, meta_y + meta_h), "Report No", f_sec)
+
+    draw.rectangle((margin_x + w_lbl, meta_y, margin_x + w_lbl + w_no, meta_y + meta_h), outline="#000000", width=3, fill="#ffffff")
+    _draw_centered_text(draw, (margin_x + w_lbl, meta_y, margin_x + w_lbl + w_no, meta_y + meta_h), str(report_no), f_sec)
+
+    draw.rectangle((margin_x + w_lbl + w_no, meta_y, margin_x + table_w, meta_y + meta_h), outline="#000000", width=3, fill="#ffffff")
+    _draw_centered_text(
+        draw,
+        (margin_x + w_lbl + w_no, meta_y, margin_x + table_w, meta_y + meta_h),
+        f"Date : {disp_date}",
+        f_sec,
+    )
+
+    return img, draw, margin_x, table_w, meta_y + meta_h
+
+
+def build_a4_pages(depot, report_no, report_date, d_df, i_df, summary_df):
+    f_title, f_sec, f_body, f_small = get_fonts()
+    disp_date = format_display_date(report_date)
+    bottom_limit = A4_HEIGHT - 100
+
+    pages = []
+    page_num = 1
+    img, draw, x_left, table_w, y = _new_a4_page(depot, report_no, disp_date, page_num)
+
+    section_h = 64
+    header_h = 58
+    row_h = 54
+    gap_h = 44
+
+    # 4-column layout matching reference image
+    col4 = [
+        int(table_w * 0.34),
+        int(table_w * 0.18),
+        int(table_w * 0.18),
+        table_w - int(table_w * 0.34) - int(table_w * 0.18) - int(table_w * 0.18),
+    ]
+
+    # 5-column layout for Brand Stock Summary
+    col5 = [
+        int(table_w * 0.32),
+        int(table_w * 0.17),
+        int(table_w * 0.17),
+        int(table_w * 0.17),
+        table_w - int(table_w * 0.32) - (3 * int(table_w * 0.17)),
+    ]
+
+    def ensure_space(needed_h):
+        nonlocal img, draw, y, page_num
+        if y + needed_h > bottom_limit:
+            pages.append(img)
+            page_num += 1
+            img, draw, x_left, table_w, y = _new_a4_page(depot, report_no, disp_date, page_num)
+
+    # ---------------- DISPATCH (OUT) ----------------
+    ensure_space(gap_h + section_h + header_h + row_h)
+    y += gap_h
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=2, fill="#ffffff")
+    _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "DISPATCH (OUT)", f_sec)
+    y += section_h
+
+    _draw_row(draw, x_left, y, col4, header_h, ["Party", "Bag", "Brand", "Truck"], f_sec)
+    y += header_h
+
+    if d_df.empty:
+        _draw_row(draw, x_left, y, col4, row_h, ["-", "0", "-", "-"], f_body)
+        y += row_h
+    else:
+        for _, r in d_df.iterrows():
+            ensure_space(row_h)
+            _draw_row(
+                draw,
+                x_left,
+                y,
+                col4,
+                row_h,
+                [r["Party"], r["Bag"], r["Brand"], r["Truck"]],
+                f_body,
+            )
+            y += row_h
+
+    # ---------------- INWARD TRUCKS (IN) ----------------
+    ensure_space(gap_h + section_h + header_h + row_h)
+    y += gap_h
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=2, fill="#ffffff")
+    _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "INWARD TRUCKS (IN)", f_sec)
+    y += section_h
+
+    _draw_row(draw, x_left, y, col4, header_h, ["Truck", "Bag", "Brand", "RoadLine"], f_sec)
+    y += header_h
+
+    if i_df.empty:
+        _draw_row(draw, x_left, y, col4, row_h, ["-", "0", "-", "-"], f_body)
+        y += row_h
+    else:
+        for _, r in i_df.iterrows():
+            ensure_space(row_h)
+            _draw_row(
+                draw,
+                x_left,
+                y,
+                col4,
+                row_h,
+                [r["Truck"], r["Bag"], r["Brand"], r["RoadLine"]],
+                f_body,
+            )
+            y += row_h
+
+    # ---------------- BRAND STOCK SUMMARY ----------------
+    needed_summary = gap_h + section_h + header_h + (len(summary_df) * row_h)
+    ensure_space(needed_summary)
+    y += gap_h
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=2, fill="#ffffff")
+    _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "BRAND STOCK SUMMARY", f_sec)
+    y += section_h
+
+    _draw_row(draw, x_left, y, col5, header_h, ["Brand", "OP-ST", "In", "Out", "Total"], f_sec)
+    y += header_h
+
+    for _, r in summary_df.iterrows():
+        _draw_row(
+            draw,
+            x_left,
+            y,
+            col5,
+            row_h,
+            [r["Brand"], r["OP-ST"], r["In"], r["Out"], r["Total"]],
+            f_body,
+        )
+        y += row_h
+
+    pages.append(img)
+    return pages
+
+
+def pages_to_jpg_bytes(page_img):
+    buf = io.BytesIO()
+    page_img.save(buf, format="JPEG", quality=95)
+    buf.seek(0)
+    return buf.getvalue()
+
+
+def pages_to_zip_bytes(pages, depot, report_date):
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for idx, p_img in enumerate(pages, start=1):
+            p_bytes = pages_to_jpg_bytes(p_img)
+            zf.writestr(f"{depot}_{report_date}_page_{idx}.jpg", p_bytes)
+    zip_buf.seek(0)
+    return zip_buf.getvalue()
+
+
+def pages_to_pdf_bytes(pages):
+    if not pages:
+        return b""
+    pdf_buf = io.BytesIO()
+    first_page = pages[0].convert("RGB")
+    other_pages = [p.convert("RGB") for p in pages[1:]]
+    first_page.save(
+        pdf_buf,
+        format="PDF",
+        save_all=True,
+        append_images=other_pages,
+        resolution=300.0,
+    )
+    pdf_buf.seek(0)
+    return pdf_buf.getvalue()
+
+
 def build_excel_bytes(depot, report_no, report_date, d_df, i_df, summary_df):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         meta_df = pd.DataFrame(
-            [{"Depot": depot, "Report No": report_no, "Date": report_date}]
+            [{"Depot": depot, "Report No": report_no, "Date": format_display_date(report_date)}]
         )
         meta_df.to_excel(writer, sheet_name="Report_Details", index=False)
         d_df.to_excel(writer, sheet_name="Dispatch_OUT", index=False)
@@ -271,102 +507,6 @@ def build_excel_bytes(depot, report_no, report_date, d_df, i_df, summary_df):
         summary_df.to_excel(writer, sheet_name="Stock_Summary", index=False)
     output.seek(0)
     return output.getvalue()
-
-
-def build_jpg_bytes(depot, report_no, report_date, d_df, i_df, summary_df):
-    f_title, f_sec, f_body, f_small = get_fonts()
-    width = 1040
-    line_h = 26
-    est_height = 240 + (len(d_df) + len(i_df) + len(summary_df) + 12) * line_h
-    height = max(680, est_height)
-
-    img = Image.new("RGB", (width, height), "white")
-    draw = ImageDraw.Draw(img)
-
-    draw.rectangle([15, 15, width - 15, 65], fill="#0d47a1")
-    draw.text(
-        (30, 28),
-        f"{depot}  |  Date: {report_date}  |  No: {report_no}",
-        fill="white",
-        font=f_title,
-    )
-    y = 85
-
-    draw.text((25, y), "1. DISPATCH / OUT", fill="#0d47a1", font=f_sec)
-    y += 28
-    draw.text(
-        (25, y),
-        "ID     Date          Party                         Bag      Brand      Truck",
-        fill="#111111",
-        font=f_small,
-    )
-    y += 22
-    if d_df.empty:
-        draw.text((25, y), "No dispatch entries.", fill="#666666", font=f_body)
-        y += 26
-    else:
-        for _, r in d_df.iterrows():
-            line = (
-                f"{str(r['ID']):<6} "
-                f"{str(r['Date']):<13} "
-                f"{str(r['Party'])[:26]:<28} "
-                f"{str(r['Bag']):<8} "
-                f"{str(r['Brand']):<10} "
-                f"{str(r['Truck'])[:16]}"
-            )
-            draw.text((25, y), line, fill="#222222", font=f_body)
-            y += 24
-        y += 6
-
-    draw.text((25, y), "2. INWARD TRUCKS / IN", fill="#0d47a1", font=f_sec)
-    y += 28
-    draw.text(
-        (25, y),
-        "ID     Truck               Bag      Brand      RoadLine",
-        fill="#111111",
-        font=f_small,
-    )
-    y += 22
-    if i_df.empty:
-        draw.text((25, y), "No inward entries.", fill="#666666", font=f_body)
-        y += 26
-    else:
-        for _, r in i_df.iterrows():
-            line = (
-                f"{str(r['ID']):<6} "
-                f"{str(r['Truck'])[:18]:<20} "
-                f"{str(r['Bag']):<8} "
-                f"{str(r['Brand']):<10} "
-                f"{str(r['RoadLine'])[:22]}"
-            )
-            draw.text((25, y), line, fill="#222222", font=f_body)
-            y += 24
-        y += 6
-
-    draw.text((25, y), "3. BRAND STOCK SUMMARY", fill="#0d47a1", font=f_sec)
-    y += 28
-    draw.text(
-        (25, y),
-        "Brand               OP-ST         In          Out         Total",
-        fill="#111111",
-        font=f_small,
-    )
-    y += 22
-    for _, r in summary_df.iterrows():
-        line = (
-            f"{str(r['Brand']):<18} "
-            f"{str(r['OP-ST']):<12} "
-            f"{str(r['In']):<12} "
-            f"{str(r['Out']):<12} "
-            f"{str(r['Total']):<12}"
-        )
-        draw.text((25, y), line, fill="#111111", font=f_body)
-        y += 24
-
-    buf = io.BytesIO()
-    img.save(buf, format="JPEG", quality=92)
-    buf.seek(0)
-    return buf.getvalue()
 
 
 def show_login():
@@ -609,7 +749,7 @@ def main():
 
     d_df_all = pd.read_sql_query(
         """
-        SELECT id AS ID, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
+        SELECT party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
         FROM dispatch_entries
         WHERE depot = ? AND report_date = ?
         ORDER BY id ASC
@@ -619,7 +759,7 @@ def main():
     )
     i_df_all = pd.read_sql_query(
         """
-        SELECT id AS ID, truck AS Truck, bag AS Bag, brand AS Brand, roadline AS RoadLine
+        SELECT truck AS Truck, bag AS Bag, brand AS Brand, roadline AS RoadLine
         FROM inward_entries
         WHERE depot = ? AND report_date = ?
         ORDER BY id ASC
@@ -631,14 +771,18 @@ def main():
         conn, depot, report_date, db_p_op, db_pl_op, db_x_op
     )
 
-    b_left, b_mid, b_right = st.columns([5, 1.8, 1.8])
+    a4_pages = build_a4_pages(
+        depot, report_no, report_date, d_df_all, i_df_all, summary_df_all
+    )
+
+    b_left, b_excel, b_jpg, b_pdf = st.columns([4.2, 1.4, 1.5, 1.4])
     with b_left:
         st.markdown(
             f"**User:** {user_id} | **Depot:** {depot} | **Date:** {report_date} | "
-            f"**Dispatch:** {len(d_df_all)} | **Inward:** {len(i_df_all)}"
+            f"**A4 Pages:** {len(a4_pages)}"
         )
 
-    with b_mid:
+    with b_excel:
         excel_bytes = build_excel_bytes(
             depot, report_no, report_date, d_df_all, i_df_all, summary_df_all
         )
@@ -650,15 +794,30 @@ def main():
             use_container_width=True,
         )
 
-    with b_right:
-        jpg_bytes = build_jpg_bytes(
-            depot, report_no, report_date, d_df_all, i_df_all, summary_df_all
-        )
+    with b_jpg:
+        if len(a4_pages) == 1:
+            st.download_button(
+                label="Export JPG (A4)",
+                data=pages_to_jpg_bytes(a4_pages[0]),
+                file_name=f"{depot}_{report_date}_A4_page_1.jpg",
+                mime="image/jpeg",
+                use_container_width=True,
+            )
+        else:
+            st.download_button(
+                label=f"Export JPG ({len(a4_pages)} Pages ZIP)",
+                data=pages_to_zip_bytes(a4_pages, depot, report_date),
+                file_name=f"{depot}_{report_date}_A4_pages.zip",
+                mime="application/zip",
+                use_container_width=True,
+            )
+
+    with b_pdf:
         st.download_button(
-            label="Export JPG",
-            data=jpg_bytes,
-            file_name=f"{depot}_{report_date}_report.jpg",
-            mime="image/jpeg",
+            label="Export PDF (A4)",
+            data=pages_to_pdf_bytes(a4_pages),
+            file_name=f"{depot}_{report_date}_A4_report.pdf",
+            mime="application/pdf",
             use_container_width=True,
         )
 
