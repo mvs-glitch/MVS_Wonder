@@ -4334,7 +4334,7 @@ def main():
 
     try:
 
-        root = tk.Tk()
+        # root = tk.Tk()
 
         app = DepotControllerApp(
             root
