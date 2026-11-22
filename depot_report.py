@@ -146,6 +146,14 @@ def get_connection():
         """
     )
 
+    # Ensure approved_by exists on older databases
+    cur.execute("PRAGMA table_info(dispatch_entries)")
+    existing_cols = [row[1] for row in cur.fetchall()]
+    if "approved_by" not in existing_cols:
+        cur.execute(
+            "ALTER TABLE dispatch_entries ADD COLUMN approved_by TEXT DEFAULT ''"
+        )
+
     conn.commit()
     return conn
 
@@ -203,31 +211,6 @@ def save_meta(conn, depot, report_date, report_no, p_op, pl_op, x_op, is_admin):
     conn.commit()
 
 
-def clear_day_data(conn, depot, report_date):
-    cur = conn.cursor()
-    cur.execute(
-        "DELETE FROM pending_party_entries WHERE depot = ? AND report_date = ?",
-        (depot, report_date),
-    )
-    cur.execute(
-        "DELETE FROM dispatch_entries WHERE depot = ? AND report_date = ?",
-        (depot, report_date),
-    )
-    cur.execute(
-        "DELETE FROM inward_entries WHERE depot = ? AND report_date = ?",
-        (depot, report_date),
-    )
-    cur.execute(
-        """
-        UPDATE report_meta
-        SET ppc_op = 0, plus_op = 0, xtreme_op = 0
-        WHERE depot = ? AND report_date = ?
-        """,
-        (depot, report_date),
-    )
-    conn.commit()
-
-
 def submit_party_for_approval(conn, depot, report_date, party, bag, brand, truck, user_id):
     cur = conn.cursor()
     cur.execute(
@@ -243,37 +226,62 @@ def submit_party_for_approval(conn, depot, report_date, party, bag, brand, truck
 
 def approve_pending_entry(conn, pending_id, depot, report_date, approver_id):
     cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT depot, report_date, party, bag, brand, truck
-        FROM pending_party_entries
-        WHERE id = ? AND depot = ? AND report_date = ? AND status = 'PENDING'
-        """,
-        (int(pending_id), depot, report_date),
-    )
-    row = cur.fetchone()
-    if not row:
+    try:
+        cur.execute(
+            """
+            SELECT depot, report_date, party, bag, brand, truck
+            FROM pending_party_entries
+            WHERE id = ? AND depot = ? AND report_date = ? AND status = 'PENDING'
+            """,
+            (int(pending_id), depot, report_date),
+        )
+        row = cur.fetchone()
+        if not row:
+            return False
+
+        p_depot, p_date, party, bag, brand, truck = row
+        cur.execute(
+            """
+            INSERT INTO dispatch_entries
+            (depot, report_date, party, bag, brand, truck, approved_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (p_depot, p_date, party, int(bag), brand, truck, approver_id),
+        )
+        cur.execute(
+            """
+            UPDATE pending_party_entries
+            SET status = 'APPROVED'
+            WHERE id = ?
+            """,
+            (int(pending_id),),
+        )
+        conn.commit()
+        return True
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         return False
 
-    p_depot, p_date, party, bag, brand, truck = row
+
+def delete_dispatch_by_id(conn, entry_id, depot, report_date):
+    cur = conn.cursor()
     cur.execute(
-        """
-        INSERT INTO dispatch_entries
-        (depot, report_date, party, bag, brand, truck, approved_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (p_depot, p_date, party, int(bag), brand, truck, approver_id),
-    )
-    cur.execute(
-        """
-        UPDATE pending_party_entries
-        SET status = 'APPROVED'
-        WHERE id = ?
-        """,
-        (int(pending_id),),
+        "DELETE FROM dispatch_entries WHERE id = ? AND depot = ? AND report_date = ?",
+        (int(entry_id), depot, report_date),
     )
     conn.commit()
-    return True
+
+
+def delete_inward_by_id(conn, entry_id, depot, report_date):
+    cur = conn.cursor()
+    cur.execute(
+        "DELETE FROM inward_entries WHERE id = ? AND depot = ? AND report_date = ?",
+        (int(entry_id), depot, report_date),
+    )
+    conn.commit()
 
 
 def import_excel_file(conn, uploaded_file, depot, report_date, is_admin, user_id):
@@ -309,7 +317,6 @@ def import_excel_file(conn, uploaded_file, depot, report_date, is_admin, user_id
                 truck = ""
 
             if is_admin:
-                # Admin party entries go to pending approval for Depot Incharge
                 cur.execute(
                     """
                     INSERT INTO pending_party_entries
@@ -730,7 +737,7 @@ def main():
     )
 
     st.markdown("### Report Details")
-    r1, r2, r3, r4, r5, r6 = st.columns([2, 1.3, 1.5, 1.3, 1.3, 1.2])
+    r1, r2, r3, r4 = st.columns([2.2, 1.4, 1.6, 1.3])
 
     with r1:
         if is_admin:
@@ -751,16 +758,6 @@ def main():
     ensure_meta(conn, depot, report_date, report_no)
 
     with r4:
-        if st.button("LOAD DATA", use_container_width=True):
-            st.rerun()
-
-    with r5:
-        if st.button("CLEAR DAY", use_container_width=True):
-            clear_day_data(conn, depot, report_date)
-            st.success("Is din ka data clear ho gaya.")
-            st.rerun()
-
-    with r6:
         if st.button("LOGOUT", use_container_width=True):
             st.session_state.user = None
             st.rerun()
@@ -812,7 +809,7 @@ def main():
 
             pend_df_admin = pd.read_sql_query(
                 """
-                SELECT id AS ID, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck, status AS Status
+                SELECT report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck, status AS Status
                 FROM pending_party_entries
                 WHERE depot = ? AND report_date = ? AND status = 'PENDING'
                 ORDER BY id DESC
@@ -825,9 +822,9 @@ def main():
 
         else:
             st.markdown("#### Approve Party Entries (Depot Incharge Only)")
-            pend_df = pd.read_sql_query(
+            pend_rows = pd.read_sql_query(
                 """
-                SELECT id AS ID, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
+                SELECT id, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
                 FROM pending_party_entries
                 WHERE depot = ? AND report_date = ? AND status = 'PENDING'
                 ORDER BY id DESC
@@ -835,27 +832,37 @@ def main():
                 conn,
                 params=(depot, report_date),
             )
-            st.dataframe(pend_df, use_container_width=True, hide_index=True)
 
-            if not pend_df.empty:
-                ap_c1, ap_c2 = st.columns([2, 6])
-                pending_options = pend_df["ID"].tolist()
-                sel_pend_id = ap_c1.selectbox(
-                    "Select Pending Entry ID to Approve",
-                    options=pending_options,
-                    key="sel_pend_id",
-                )
-                if ap_c2.button("APPROVE & SAVE ENTRY"):
-                    if approve_pending_entry(conn, sel_pend_id, depot, report_date, user_id):
-                        st.success(f"Entry #{sel_pend_id} approve ho kar save ho gayi.")
-                        st.rerun()
-            else:
+            if pend_rows.empty:
                 st.info("Is date ke liye koi pending party entry nahi hai.")
+            else:
+                ph1, ph2, ph3, ph4, ph5, ph6 = st.columns([1.4, 2.6, 1.0, 1.2, 1.8, 1.4])
+                ph1.markdown("**Date**")
+                ph2.markdown("**Party**")
+                ph3.markdown("**Bag**")
+                ph4.markdown("**Brand**")
+                ph5.markdown("**Truck**")
+                ph6.markdown("**Approve**")
+
+                for _, prow in pend_rows.iterrows():
+                    p_id = int(prow["id"])
+                    c_dt, c_pt, c_bg, c_br, c_tr, c_ap = st.columns([1.4, 2.6, 1.0, 1.2, 1.8, 1.4])
+                    c_dt.write(prow["Date"])
+                    c_pt.write(prow["Party"])
+                    c_bg.write(str(prow["Bag"]))
+                    c_br.write(prow["Brand"])
+                    c_tr.write(prow["Truck"])
+                    if c_ap.button("Approve", key=f"approve_btn_{p_id}", use_container_width=True):
+                        if approve_pending_entry(conn, p_id, depot, report_date, user_id):
+                            st.success(f"{prow['Party']} ({prow['Truck']}) approve ho kar save ho gayi.")
+                            st.rerun()
+                        else:
+                            st.error("Entry approve nahi ho saki.")
 
         st.markdown("##### Approved & Saved Dispatch Entries (Latest Top)")
-        d_df = pd.read_sql_query(
+        d_rows = pd.read_sql_query(
             """
-            SELECT id AS ID, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
+            SELECT id, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
             FROM dispatch_entries
             WHERE depot = ? AND report_date = ?
             ORDER BY id DESC
@@ -863,21 +870,36 @@ def main():
             conn,
             params=(depot, report_date),
         )
-        st.dataframe(d_df, use_container_width=True, hide_index=True)
 
-        del_c1, del_c2 = st.columns([2, 6])
-        del_d_id = del_c1.number_input(
-            "Delete Approved Dispatch ID (#)", min_value=0, step=1, value=0, key="del_d_id"
-        )
-        if del_c2.button("DELETE DISPATCH"):
-            if del_d_id > 0:
-                cur = conn.cursor()
-                cur.execute(
-                    "DELETE FROM dispatch_entries WHERE id = ? AND depot = ? AND report_date = ?",
-                    (int(del_d_id), depot, report_date),
+        if d_rows.empty:
+            st.info("Is date ke liye koi approved dispatch entry nahi hai.")
+        else:
+            if is_admin:
+                dh1, dh2, dh3, dh4, dh5, dh6 = st.columns([1.4, 2.6, 1.0, 1.2, 1.8, 1.4])
+                dh1.markdown("**Date**")
+                dh2.markdown("**Party**")
+                dh3.markdown("**Bag**")
+                dh4.markdown("**Brand**")
+                dh5.markdown("**Truck**")
+                dh6.markdown("**Delete**")
+
+                for _, drow in d_rows.iterrows():
+                    d_id = int(drow["id"])
+                    c_dt, c_pt, c_bg, c_br, c_tr, c_dl = st.columns([1.4, 2.6, 1.0, 1.2, 1.8, 1.4])
+                    c_dt.write(drow["Date"])
+                    c_pt.write(drow["Party"])
+                    c_bg.write(str(drow["Bag"]))
+                    c_br.write(drow["Brand"])
+                    c_tr.write(drow["Truck"])
+                    if c_dl.button("Delete", key=f"del_disp_{d_id}", use_container_width=True):
+                        delete_dispatch_by_id(conn, d_id, depot, report_date)
+                        st.rerun()
+            else:
+                st.dataframe(
+                    d_rows[["Date", "Party", "Bag", "Brand", "Truck"]],
+                    use_container_width=True,
+                    hide_index=True,
                 )
-                conn.commit()
-                st.rerun()
 
     with tab2:
         st.markdown("#### Add Inward Truck / In")
@@ -904,9 +926,9 @@ def main():
                 conn.commit()
                 st.rerun()
 
-        i_df = pd.read_sql_query(
+        i_rows = pd.read_sql_query(
             """
-            SELECT id AS ID, report_date AS Date, truck AS Truck, bag AS Bag, brand AS Brand, roadline AS RoadLine
+            SELECT id, report_date AS Date, truck AS Truck, bag AS Bag, brand AS Brand, roadline AS RoadLine
             FROM inward_entries
             WHERE depot = ? AND report_date = ?
             ORDER BY id DESC
@@ -914,21 +936,36 @@ def main():
             conn,
             params=(depot, report_date),
         )
-        st.dataframe(i_df, use_container_width=True, hide_index=True)
 
-        idel_c1, idel_c2 = st.columns([2, 6])
-        del_i_id = idel_c1.number_input(
-            "Delete Inward ID (#)", min_value=0, step=1, value=0, key="del_i_id"
-        )
-        if idel_c2.button("DELETE INWARD"):
-            if del_i_id > 0:
-                cur = conn.cursor()
-                cur.execute(
-                    "DELETE FROM inward_entries WHERE id = ? AND depot = ? AND report_date = ?",
-                    (int(del_i_id), depot, report_date),
+        if i_rows.empty:
+            st.info("Is date ke liye koi inward entry nahi hai.")
+        else:
+            if is_admin:
+                ih1, ih2, ih3, ih4, ih5, ih6 = st.columns([1.4, 2.0, 1.0, 1.2, 2.4, 1.4])
+                ih1.markdown("**Date**")
+                ih2.markdown("**Truck**")
+                ih3.markdown("**Bag**")
+                ih4.markdown("**Brand**")
+                ih5.markdown("**RoadLine**")
+                ih6.markdown("**Delete**")
+
+                for _, irow in i_rows.iterrows():
+                    i_id = int(irow["id"])
+                    c_dt, c_tr, c_bg, c_br, c_rl, c_dl = st.columns([1.4, 2.0, 1.0, 1.2, 2.4, 1.4])
+                    c_dt.write(irow["Date"])
+                    c_tr.write(irow["Truck"])
+                    c_bg.write(str(irow["Bag"]))
+                    c_br.write(irow["Brand"])
+                    c_rl.write(irow["RoadLine"])
+                    if c_dl.button("Delete", key=f"del_inw_{i_id}", use_container_width=True):
+                        delete_inward_by_id(conn, i_id, depot, report_date)
+                        st.rerun()
+            else:
+                st.dataframe(
+                    i_rows[["Date", "Truck", "Bag", "Brand", "RoadLine"]],
+                    use_container_width=True,
+                    hide_index=True,
                 )
-                conn.commit()
-                st.rerun()
 
     with tab3:
         st.markdown(
