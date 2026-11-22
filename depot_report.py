@@ -85,45 +85,103 @@ def format_display_date(date_str):
         return str(date_str)
 
 
-def inject_responsive_css():
+def inject_colorful_responsive_css():
     st.markdown(
         """
         <style>
+        .stApp {
+            background: linear-gradient(180deg, #f3f7fc 0%, #eef3f9 100%);
+        }
+
         .block-container {
-            padding-top: 1.2rem;
-            padding-bottom: 2rem;
+            padding-top: 1.1rem;
+            padding-bottom: 2.2rem;
             max-width: 100%;
         }
 
         .depot-header-banner {
-            background-color: #0d47a1;
-            padding: 12px 18px;
-            border-radius: 6px;
+            background: linear-gradient(90deg, #0d47a1 0%, #1565c0 55%, #0277bd 100%);
+            padding: 14px 20px;
+            border-radius: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 12px;
+            gap: 10px;
+            margin-bottom: 14px;
+            box-shadow: 0 4px 12px rgba(13, 71, 161, 0.18);
         }
 
         .depot-header-title {
-            color: white;
-            font-size: 20px;
-            font-weight: bold;
+            color: #ffffff;
+            font-size: 21px;
+            font-weight: 800;
+            letter-spacing: 0.4px;
         }
 
         .depot-header-role {
+            background: rgba(255, 255, 255, 0.18);
             color: #e3f2fd;
-            font-size: 13px;
-            font-weight: bold;
+            font-size: 12.5px;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .section-card-title {
+            background: linear-gradient(90deg, #e3f2fd 0%, #ede7f6 100%);
+            color: #0d47a1;
+            padding: 8px 14px;
+            border-left: 5px solid #1565c0;
+            border-radius: 6px;
+            font-weight: 700;
+            margin: 10px 0 10px 0;
+        }
+
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 8px;
+            background-color: #ffffff;
+            padding: 6px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .stTabs [data-baseweb="tab"] {
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-weight: 700;
+            color: #1e3a5f;
+        }
+
+        .stTabs [aria-selected="true"] {
+            background: linear-gradient(90deg, #1565c0 0%, #1976d2 100%) !important;
+            color: #ffffff !important;
+        }
+
+        .stButton > button, .stDownloadButton > button {
+            border-radius: 8px;
+            font-weight: 700;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        .stButton > button:hover, .stDownloadButton > button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
         }
 
         div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
-            border: 1px solid rgba(128, 128, 128, 0.45);
+            border: 1px solid rgba(21, 101, 192, 0.25);
             padding: 6px 8px;
             display: flex;
             align-items: center;
+            background-color: #fafcff;
         }
 
         @media (max-width: 768px) {
@@ -131,7 +189,7 @@ def inject_responsive_css():
                 font-size: 17px;
             }
             .depot-header-role {
-                font-size: 12px;
+                font-size: 11.5px;
             }
             .stButton > button, .stDownloadButton > button {
                 min-height: 42px;
@@ -176,7 +234,6 @@ def get_connection():
         CREATE TABLE IF NOT EXISTS report_meta (
             depot TEXT NOT NULL,
             report_date TEXT NOT NULL,
-            report_no TEXT DEFAULT '',
             ppc_op INTEGER DEFAULT 0,
             plus_op INTEGER DEFAULT 0,
             xtreme_op INTEGER DEFAULT 0,
@@ -333,7 +390,7 @@ def load_meta(conn, depot, report_date):
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT report_no, ppc_op, plus_op, xtreme_op, op_set
+        SELECT ppc_op, plus_op, xtreme_op, op_set
         FROM report_meta
         WHERE depot = ? AND report_date = ?
         """,
@@ -342,10 +399,9 @@ def load_meta(conn, depot, report_date):
     row = cur.fetchone()
 
     if row:
-        r_no = row[0] or "85"
-        op_set = int(row[4] or 0)
+        op_set = int(row[3] or 0)
         if op_set == 1:
-            return r_no, int(row[1] or 0), int(row[2] or 0), int(row[3] or 0)
+            return int(row[0] or 0), int(row[1] or 0), int(row[2] or 0)
 
         prev_p, prev_pl, prev_x = get_previous_closing_stock(conn, depot, report_date)
         cur.execute(
@@ -357,42 +413,34 @@ def load_meta(conn, depot, report_date):
             (prev_p, prev_pl, prev_x, depot, report_date),
         )
         conn.commit()
-        return r_no, prev_p, prev_pl, prev_x
+        return prev_p, prev_pl, prev_x
 
     prev_p, prev_pl, prev_x = get_previous_closing_stock(conn, depot, report_date)
     cur.execute(
         """
         INSERT INTO report_meta
-        (depot, report_date, report_no, ppc_op, plus_op, xtreme_op, op_set)
-        VALUES (?, ?, '85', ?, ?, ?, 1)
+        (depot, report_date, ppc_op, plus_op, xtreme_op, op_set)
+        VALUES (?, ?, ?, ?, ?, 1)
         """,
         (depot, report_date, prev_p, prev_pl, prev_x),
     )
     conn.commit()
-    return "85", prev_p, prev_pl, prev_x
+    return prev_p, prev_pl, prev_x
 
 
-def save_meta(conn, depot, report_date, report_no, p_op, pl_op, x_op, is_admin):
+def save_meta(conn, depot, report_date, p_op, pl_op, x_op, is_admin):
     load_meta(conn, depot, report_date)
+    if not is_admin:
+        return
     cur = conn.cursor()
-    if is_admin:
-        cur.execute(
-            """
-            UPDATE report_meta
-            SET report_no = ?, ppc_op = ?, plus_op = ?, xtreme_op = ?, op_set = 1
-            WHERE depot = ? AND report_date = ?
-            """,
-            (report_no or "85", p_op, pl_op, x_op, depot, report_date),
-        )
-    else:
-        cur.execute(
-            """
-            UPDATE report_meta
-            SET report_no = ?
-            WHERE depot = ? AND report_date = ?
-            """,
-            (report_no or "85", depot, report_date),
-        )
+    cur.execute(
+        """
+        UPDATE report_meta
+        SET ppc_op = ?, plus_op = ?, xtreme_op = ?, op_set = 1
+        WHERE depot = ? AND report_date = ?
+        """,
+        (p_op, pl_op, x_op, depot, report_date),
+    )
     conn.commit()
 
 
@@ -622,16 +670,16 @@ def _draw_centered_text(draw, box, text, font, fill="#000000"):
     draw.text((tx, ty), str(text), font=font, fill=fill)
 
 
-def _draw_row(draw, x_left, y, col_widths, row_h, values, font):
+def _draw_row(draw, x_left, y, col_widths, row_h, values, font, fill="#ffffff"):
     cur_x = x_left
     for idx, w in enumerate(col_widths):
         box = (cur_x, y, cur_x + w, y + row_h)
-        draw.rectangle(box, outline="#000000", width=3, fill="#ffffff")
+        draw.rectangle(box, outline="#000000", width=3, fill=fill)
         _draw_centered_text(draw, box, values[idx], font, fill="#000000")
         cur_x += w
 
 
-def _new_a4_page(depot, report_no, disp_date):
+def _new_a4_page(depot, disp_date):
     f_title, f_sec, _, _ = get_fonts()
     img = Image.new("RGB", (A4_WIDTH, A4_HEIGHT), "#ffffff")
     draw = ImageDraw.Draw(img)
@@ -645,7 +693,7 @@ def _new_a4_page(depot, report_no, disp_date):
         (margin_x, top_y, margin_x + table_w, top_y + depot_h),
         outline="#000000",
         width=4,
-        fill="#ffffff",
+        fill="#e3f2fd",
     )
     _draw_centered_text(
         draw,
@@ -657,19 +705,16 @@ def _new_a4_page(depot, report_no, disp_date):
 
     meta_y = top_y + depot_h
     meta_h = 88
-    w_lbl = int(table_w * 0.25)
-    w_no = int(table_w * 0.22)
 
-    draw.rectangle((margin_x, meta_y, margin_x + w_lbl, meta_y + meta_h), outline="#000000", width=4, fill="#ffffff")
-    _draw_centered_text(draw, (margin_x, meta_y, margin_x + w_lbl, meta_y + meta_h), "Report No", f_sec)
-
-    draw.rectangle((margin_x + w_lbl, meta_y, margin_x + w_lbl + w_no, meta_y + meta_h), outline="#000000", width=4, fill="#ffffff")
-    _draw_centered_text(draw, (margin_x + w_lbl, meta_y, margin_x + w_lbl + w_no, meta_y + meta_h), str(report_no), f_sec)
-
-    draw.rectangle((margin_x + w_lbl + w_no, meta_y, margin_x + table_w, meta_y + meta_h), outline="#000000", width=4, fill="#ffffff")
+    draw.rectangle(
+        (margin_x, meta_y, margin_x + table_w, meta_y + meta_h),
+        outline="#000000",
+        width=4,
+        fill="#ffffff",
+    )
     _draw_centered_text(
         draw,
-        (margin_x + w_lbl + w_no, meta_y, margin_x + table_w, meta_y + meta_h),
+        (margin_x, meta_y, margin_x + table_w, meta_y + meta_h),
         f"Date : {disp_date}",
         f_sec,
     )
@@ -692,13 +737,13 @@ def _stamp_page_numbers(pages):
         )
 
 
-def build_a4_pages(depot, report_no, report_date, d_df, i_df, summary_df):
+def build_a4_pages(depot, report_date, d_df, i_df, summary_df):
     _, f_sec, f_body, _ = get_fonts()
     disp_date = format_display_date(report_date)
     bottom_limit = A4_HEIGHT - 140
 
     pages = []
-    img, draw, x_left, table_w, y = _new_a4_page(depot, report_no, disp_date)
+    img, draw, x_left, table_w, y = _new_a4_page(depot, disp_date)
 
     section_h = 78
     header_h = 72
@@ -724,16 +769,16 @@ def build_a4_pages(depot, report_no, report_date, d_df, i_df, summary_df):
         nonlocal img, draw, y
         if y + needed_h > bottom_limit:
             pages.append(img)
-            img, draw, x_left, table_w, y = _new_a4_page(depot, report_no, disp_date)
+            img, draw, x_left, table_w, y = _new_a4_page(depot, disp_date)
 
     # ---------------- DISPATCH (OUT) ----------------
     ensure_space(gap_h + section_h + header_h + row_h)
     y += gap_h
-    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=3, fill="#ffffff")
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=3, fill="#e8f5e9")
     _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "DISPATCH (OUT)", f_sec)
     y += section_h
 
-    _draw_row(draw, x_left, y, col4, header_h, ["Party", "Bag", "Brand", "Truck"], f_sec)
+    _draw_row(draw, x_left, y, col4, header_h, ["Party", "Bag", "Brand", "Truck"], f_sec, fill="#f1f8e9")
     y += header_h
 
     if d_df.empty:
@@ -756,11 +801,11 @@ def build_a4_pages(depot, report_no, report_date, d_df, i_df, summary_df):
     # ---------------- INWARD TRUCKS (IN) ----------------
     ensure_space(gap_h + section_h + header_h + row_h)
     y += gap_h
-    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=3, fill="#ffffff")
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=3, fill="#e3f2fd")
     _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "INWARD TRUCKS (IN)", f_sec)
     y += section_h
 
-    _draw_row(draw, x_left, y, col4, header_h, ["Truck", "Bag", "Brand", "RoadLine"], f_sec)
+    _draw_row(draw, x_left, y, col4, header_h, ["Truck", "Bag", "Brand", "RoadLine"], f_sec, fill="#e1f5fe")
     y += header_h
 
     if i_df.empty:
@@ -784,14 +829,15 @@ def build_a4_pages(depot, report_no, report_date, d_df, i_df, summary_df):
     needed_summary = gap_h + section_h + header_h + (len(summary_df) * row_h)
     ensure_space(needed_summary)
     y += gap_h
-    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=3, fill="#ffffff")
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=3, fill="#ede7f6")
     _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "BRAND STOCK SUMMARY", f_sec)
     y += section_h
 
-    _draw_row(draw, x_left, y, col5, header_h, ["Brand", "OP-ST", "In", "Out", "Total"], f_sec)
+    _draw_row(draw, x_left, y, col5, header_h, ["Brand", "OP-ST", "In", "Out", "Total"], f_sec, fill="#f3e5f5")
     y += header_h
 
     for _, r in summary_df.iterrows():
+        row_fill = "#fff8e1" if str(r["Brand"]) == "Grand Total" else "#ffffff"
         _draw_row(
             draw,
             x_left,
@@ -800,6 +846,7 @@ def build_a4_pages(depot, report_no, report_date, d_df, i_df, summary_df):
             row_h,
             [r["Brand"], r["OP-ST"], r["In"], r["Out"], r["Total"]],
             f_body,
+            fill=row_fill,
         )
         y += row_h
 
@@ -842,11 +889,11 @@ def pages_to_pdf_bytes(pages):
     return pdf_buf.getvalue()
 
 
-def build_excel_bytes(depot, report_no, report_date, d_df, i_df, summary_df):
+def build_excel_bytes(depot, report_date, d_df, i_df, summary_df):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         meta_df = pd.DataFrame(
-            [{"Depot": depot, "Report No": report_no, "Date": format_display_date(report_date)}]
+            [{"Depot": depot, "Date": format_display_date(report_date)}]
         )
         meta_df.to_excel(writer, sheet_name="Report_Details", index=False)
         d_df.to_excel(writer, sheet_name="Dispatch_OUT", index=False)
@@ -865,31 +912,33 @@ def show_login():
         """
         <div class="depot-header-banner">
             <span class="depot-header-title">DEPOT REPORT SYSTEM</span>
+            <span class="depot-header-role">WELCOME</span>
         </div>
         """,
         unsafe_allow_html=True,
     )
-    st.subheader("Depot Agent Login")
+    with st.container(border=True):
+        st.subheader("Depot Agent Login")
 
-    with st.form("login_form"):
-        uid_input = st.text_input("Login ID")
-        pwd_input = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("LOGIN")
+        with st.form("login_form"):
+            uid_input = st.text_input("Login ID", placeholder="Enter your Login ID")
+            pwd_input = st.text_input("Password", type="password", placeholder="Enter Password")
+            submitted = st.form_submit_button("LOGIN", use_container_width=True)
 
-    if submitted:
-        uid = uid_input.strip().lower().replace(" ", "")
-        pwd = pwd_input.strip()
-        if uid in USERS and USERS[uid][0] == pwd:
-            st.session_state.user = (uid, USERS[uid][1])
-            st.session_state.last_active_ts = time.time()
-            st.rerun()
-        else:
-            st.error("Galat Login ID ya Password.")
+        if submitted:
+            uid = uid_input.strip().lower().replace(" ", "")
+            pwd = pwd_input.strip()
+            if uid in USERS and USERS[uid][0] == pwd:
+                st.session_state.user = (uid, USERS[uid][1])
+                st.session_state.last_active_ts = time.time()
+                st.rerun()
+            else:
+                st.error("Galat Login ID ya Password.")
 
 
 def main():
     st.set_page_config(page_title="Depot Report System", layout="wide")
-    inject_responsive_css()
+    inject_colorful_responsive_css()
     conn = get_connection()
 
     if "user" not in st.session_state:
@@ -919,8 +968,8 @@ def main():
         unsafe_allow_html=True,
     )
 
-    st.markdown("### Report Details")
-    r1, r2, r3, r4 = st.columns([2.2, 1.4, 1.6, 1.3])
+    st.markdown('<div class="section-card-title">Report Details</div>', unsafe_allow_html=True)
+    r1, r2, r3 = st.columns([2.6, 1.8, 1.4])
 
     with r1:
         if is_admin:
@@ -938,12 +987,9 @@ def main():
             )
         report_date = str(selected_date)
 
-    default_r_no, db_p_op, db_pl_op, db_x_op = load_meta(conn, depot, report_date)
+    db_p_op, db_pl_op, db_x_op = load_meta(conn, depot, report_date)
 
     with r3:
-        report_no = st.text_input("Report No", value=default_r_no, label_visibility="collapsed")
-
-    with r4:
         if st.button("LOGOUT", use_container_width=True):
             st.session_state.user = None
             st.session_state.last_active_ts = None
@@ -974,7 +1020,10 @@ def main():
 
     with tab1:
         if is_admin:
-            st.markdown("#### Add Party Dispatch Entry (Admin Only - Goes for Depot Incharge Approval)")
+            st.markdown(
+                '<div class="section-card-title">Add Party Dispatch Entry (Admin Only - Goes for Depot Incharge Approval)</div>',
+                unsafe_allow_html=True,
+            )
             with st.form("party_dispatch_form", clear_on_submit=True):
                 d1, d2, d3, d4, d5 = st.columns([3, 1, 1.5, 2, 1.5])
                 party = d1.text_input("Party", placeholder="Party name")
@@ -1020,8 +1069,9 @@ def main():
                     ap_h6.markdown("**Status**")
                     ap_h7.markdown("**Delete**")
 
-                    for _, prow in pend_rows_admin.iterrows():
+                    for row_idx, (_, prow) in enumerate(pend_rows_admin.iterrows()):
                         p_id = int(prow["id"])
+                        row_bg = "#fff8e1" if row_idx % 2 == 0 else "#fff3e0"
                         c_dt, c_pt, c_bg, c_br, c_tr, c_st, c_dl = st.columns(
                             [1.2, 2.2, 0.9, 1.1, 1.5, 1.1, 1.2]
                         )
@@ -1030,7 +1080,10 @@ def main():
                         c_bg.write(str(prow["Bag"]))
                         c_br.write(prow["Brand"])
                         c_tr.write(prow["Truck"])
-                        c_st.write(prow["Status"])
+                        c_st.markdown(
+                            f'<span style="background:{row_bg};color:#e65100;padding:3px 8px;border-radius:6px;font-weight:700;font-size:12px;">{prow["Status"]}</span>',
+                            unsafe_allow_html=True,
+                        )
                         if c_dl.button("Delete", key=f"del_pend_{p_id}", use_container_width=True):
                             delete_pending_by_id(conn, p_id, depot, report_date)
                             st.success(f"Pending entry ({prow['Party']} - {prow['Truck']}) delete ho gayi.")
@@ -1072,9 +1125,7 @@ def main():
                         c_tr.write(prow["Truck"])
                         with c_ap:
                             st.markdown(
-                                f"""
-                                <div style="background-color:{bg_color};padding:4px;border-radius:6px;width:100%;">
-                                """,
+                                f'<div style="background-color:{bg_color};padding:4px;border-radius:8px;width:100%;">',
                                 unsafe_allow_html=True,
                             )
                             clicked_approve = st.button(
@@ -1089,7 +1140,10 @@ def main():
                             else:
                                 st.error("Entry approve nahi ho saki.")
 
-        st.markdown("##### Approved & Saved Dispatch Entries (Latest Top)")
+        st.markdown(
+            '<div class="section-card-title">Approved & Saved Dispatch Entries (Latest Top)</div>',
+            unsafe_allow_html=True,
+        )
         d_rows = pd.read_sql_query(
             """
             SELECT id, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
@@ -1132,7 +1186,7 @@ def main():
                 )
 
     with tab2:
-        st.markdown("#### Add Inward Truck / In")
+        st.markdown('<div class="section-card-title">Add Inward Truck / In</div>', unsafe_allow_html=True)
         with st.form("inward_form", clear_on_submit=True):
             i1, i2, i3, i4, i5 = st.columns([2, 1, 1.5, 3, 1.5])
             in_truck = i1.text_input("Truck", placeholder="Truck no", key="i_truck")
@@ -1200,9 +1254,10 @@ def main():
 
     with tab3:
         st.markdown(
-            "#### BRAND STOCK SUMMARY - ADMIN EDIT OP-ST"
+            '<div class="section-card-title">BRAND STOCK SUMMARY - ADMIN EDIT OP-ST</div>'
             if is_admin
-            else "#### BRAND STOCK SUMMARY - OP-ST CARRIED FORWARD"
+            else '<div class="section-card-title">BRAND STOCK SUMMARY - OP-ST CARRIED FORWARD</div>',
+            unsafe_allow_html=True,
         )
 
         with st.form("meta_form"):
@@ -1216,20 +1271,19 @@ def main():
             x_op = m3.number_input(
                 "Wonder Xtreme OP-ST", value=db_x_op, step=1, disabled=not is_admin
             )
-            save_btn = st.form_submit_button("Save Report Details / OP-ST")
+            save_btn = st.form_submit_button("Save OP-ST")
 
         if save_btn:
             save_meta(
                 conn,
                 depot,
                 report_date,
-                report_no,
                 int(p_op),
                 int(pl_op),
                 int(x_op),
                 is_admin,
             )
-            st.success("Report details save ho gayi.")
+            st.success("OP-ST save ho gaya.")
             st.rerun()
 
         summary_df = compute_summary_rows(
@@ -1241,7 +1295,7 @@ def main():
     # REPORT GENERATE, PRINT & EXPORT SECTION (DATE SELECTABLE)
     # ========================================================
     st.divider()
-    st.markdown("### Generate & Print Report")
+    st.markdown('<div class="section-card-title">Generate & Print Report</div>', unsafe_allow_html=True)
 
     gen_c1, gen_c2 = st.columns([2, 4])
     with gen_c1:
@@ -1260,7 +1314,7 @@ def main():
             )
         gen_date = str(gen_date_input)
 
-    gen_r_no, gen_p_op, gen_pl_op, gen_x_op = load_meta(conn, depot, gen_date)
+    gen_p_op, gen_pl_op, gen_x_op = load_meta(conn, depot, gen_date)
 
     d_df_gen = pd.read_sql_query(
         """
@@ -1287,7 +1341,7 @@ def main():
     )
 
     a4_pages = build_a4_pages(
-        depot, gen_r_no, gen_date, d_df_gen, i_df_gen, summary_df_gen
+        depot, gen_date, d_df_gen, i_df_gen, summary_df_gen
     )
 
     with gen_c2:
@@ -1302,7 +1356,7 @@ def main():
     with b_print:
         st.markdown(
             """
-            <button onclick="window.print()" style="width:100%;padding:0.45rem 0.75rem;background-color:#2e7d32;color:white;border:none;border-radius:0.5rem;font-weight:600;cursor:pointer;">
+            <button onclick="window.print()" style="width:100%;padding:0.45rem 0.75rem;background:linear-gradient(90deg,#2e7d32 0%,#388e3c 100%);color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;">
                 Print Report
             </button>
             """,
@@ -1311,7 +1365,7 @@ def main():
 
     with b_excel:
         excel_bytes = build_excel_bytes(
-            depot, gen_r_no, gen_date, d_df_gen, i_df_gen, summary_df_gen
+            depot, gen_date, d_df_gen, i_df_gen, summary_df_gen
         )
         st.download_button(
             label="Export Excel",
