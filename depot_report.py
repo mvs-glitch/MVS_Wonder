@@ -921,7 +921,12 @@ def main():
             depot = assigned_depot
 
     with r2:
-        selected_date = st.date_input("Date", value=date.today(), label_visibility="collapsed")
+        if is_admin:
+            selected_date = st.date_input("Date", value=date.today(), label_visibility="collapsed")
+        else:
+            selected_date = st.date_input(
+                "Date", value=date.today(), disabled=True, label_visibility="collapsed"
+            )
         report_date = str(selected_date)
 
     default_r_no, db_p_op, db_pl_op, db_x_op = load_meta(conn, depot, report_date)
@@ -1017,15 +1022,28 @@ def main():
                     ph5.markdown("**Truck**")
                     ph6.markdown("**Approve**")
 
-                    for _, prow in pend_rows.iterrows():
+                    for row_idx, (_, prow) in enumerate(pend_rows.iterrows()):
                         p_id = int(prow["id"])
+                        bg_color = "#e8f5e9" if row_idx % 2 == 0 else "#e3f2fd"
                         c_dt, c_pt, c_bg, c_br, c_tr, c_ap = st.columns([1.4, 2.6, 1.0, 1.2, 1.8, 1.4])
                         c_dt.write(prow["Date"])
                         c_pt.write(prow["Party"])
                         c_bg.write(str(prow["Bag"]))
                         c_br.write(prow["Brand"])
                         c_tr.write(prow["Truck"])
-                        if c_ap.button("Approve", key=f"approve_btn_{p_id}", use_container_width=True):
+                        with c_ap:
+                            st.markdown(
+                                f"""
+                                <div style="background-color:{bg_color};padding:4px;border-radius:6px;width:100%;">
+                                """,
+                                unsafe_allow_html=True,
+                            )
+                            clicked_approve = st.button(
+                                "Approve", key=f"approve_btn_{p_id}", use_container_width=True
+                            )
+                            st.markdown("</div>", unsafe_allow_html=True)
+
+                        if clicked_approve:
                             if approve_pending_entry(conn, p_id, depot, report_date, user_id):
                                 st.success(f"{prow['Party']} ({prow['Truck']}) approve ho kar save ho gayi.")
                                 st.rerun()
@@ -1188,11 +1206,19 @@ def main():
 
     gen_c1, gen_c2 = st.columns([2, 4])
     with gen_c1:
-        gen_date_input = st.date_input(
-            "Select Report Date to Generate",
-            value=selected_date,
-            key="report_generate_date",
-        )
+        if is_admin:
+            gen_date_input = st.date_input(
+                "Select Report Date to Generate",
+                value=selected_date,
+                key="report_generate_date",
+            )
+        else:
+            gen_date_input = st.date_input(
+                "Select Report Date to Generate",
+                value=date.today(),
+                disabled=True,
+                key="report_generate_date",
+            )
         gen_date = str(gen_date_input)
 
     gen_r_no, gen_p_op, gen_pl_op, gen_x_op = load_meta(conn, depot, gen_date)
