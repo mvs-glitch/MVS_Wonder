@@ -44,7 +44,7 @@ USERS = {
 }
 
 
-def get_fonts(title_size=44, section_size=30, body_size=26, small_size=24):
+def get_fonts(title_size=54, section_size=38, body_size=32, small_size=28):
     bold_candidates = [
         r"C:\Windows\Fonts\arialbd.ttf",
         r"C:\Windows\Fonts\calibrib.ttf",
@@ -207,6 +207,84 @@ def clear_day_data(conn, depot, report_date):
     conn.commit()
 
 
+def import_excel_file(conn, uploaded_file, depot, report_date):
+    cur = conn.cursor()
+    imported_d = 0
+    imported_i = 0
+
+    xl = pd.ExcelFile(uploaded_file)
+    sheet_names = [s.lower() for s in xl.sheet_names]
+
+    # Match Dispatch sheet
+    d_sheet = next(
+        (xl.sheet_names[idx] for idx, name in enumerate(sheet_names) if "dispatch" in name or "out" in name),
+        None,
+    )
+    if d_sheet:
+        df_d = xl.parse(d_sheet)
+        df_d.columns = [str(c).strip().lower() for c in df_d.columns]
+        for _, row in df_d.iterrows():
+            party = str(row.get("party", "")).strip()
+            if not party or party.lower() == "nan":
+                continue
+            try:
+                bag = int(float(row.get("bag", 0) or 0))
+            except Exception:
+                bag = 0
+            if bag <= 0:
+                continue
+            brand = str(row.get("brand", "PPC")).strip()
+            if brand not in PRODUCTS:
+                brand = "PPC"
+            truck = str(row.get("truck", "")).strip()
+            if truck.lower() == "nan":
+                truck = ""
+            cur.execute(
+                """
+                INSERT INTO dispatch_entries (depot, report_date, party, bag, brand, truck)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (depot, report_date, party, bag, brand, truck),
+            )
+            imported_d += 1
+
+    # Match Inward sheet
+    i_sheet = next(
+        (xl.sheet_names[idx] for idx, name in enumerate(sheet_names) if "inward" in name or "in" in name and "summary" not in name),
+        None,
+    )
+    if i_sheet:
+        df_i = xl.parse(i_sheet)
+        df_i.columns = [str(c).strip().lower() for c in df_i.columns]
+        for _, row in df_i.iterrows():
+            truck = str(row.get("truck", "")).strip()
+            if not truck or truck.lower() == "nan":
+                continue
+            try:
+                bag = int(float(row.get("bag", 0) or 0))
+            except Exception:
+                bag = 0
+            if bag <= 0:
+                continue
+            brand = str(row.get("brand", "PPC")).strip()
+            if brand not in PRODUCTS:
+                brand = "PPC"
+            roadline = str(row.get("roadline", row.get("from", ""))).strip()
+            if roadline.lower() == "nan":
+                roadline = ""
+            cur.execute(
+                """
+                INSERT INTO inward_entries (depot, report_date, truck, bag, brand, roadline)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (depot, report_date, truck, bag, brand, roadline),
+            )
+            imported_i += 1
+
+    conn.commit()
+    return imported_d, imported_i
+
+
 def compute_summary_rows(conn, depot, report_date, p_op, pl_op, x_op):
     cur = conn.cursor()
 
@@ -282,56 +360,54 @@ def _draw_centered_text(draw, box, text, font, fill="#000000"):
     draw.text((tx, ty), str(text), font=font, fill=fill)
 
 
-def _draw_row(draw, x_left, y, col_widths, row_h, values, font, bold_last=False):
+def _draw_row(draw, x_left, y, col_widths, row_h, values, font):
     cur_x = x_left
     for idx, w in enumerate(col_widths):
         box = (cur_x, y, cur_x + w, y + row_h)
-        draw.rectangle(box, outline="#000000", width=2, fill="#ffffff")
-        cell_font = font
-        _draw_centered_text(draw, box, values[idx], cell_font, fill="#000000")
+        draw.rectangle(box, outline="#000000", width=3, fill="#ffffff")
+        _draw_centered_text(draw, box, values[idx], font, fill="#000000")
         cur_x += w
 
 
-def _new_a4_page(depot, report_no, disp_date, page_num, total_pages_hint=None):
+def _new_a4_page(depot, report_no, disp_date, page_num):
     f_title, f_sec, f_body, f_small = get_fonts()
     img = Image.new("RGB", (A4_WIDTH, A4_HEIGHT), "#ffffff")
     draw = ImageDraw.Draw(img)
 
-    margin_x = 90
-    top_y = 90
+    margin_x = 85
+    top_y = 85
     table_w = A4_WIDTH - (2 * margin_x)
 
     # Top Depot Header Box
-    depot_h = 84
+    depot_h = 100
     draw.rectangle(
         (margin_x, top_y, margin_x + table_w, top_y + depot_h),
         outline="#000000",
-        width=3,
+        width=4,
         fill="#ffffff",
     )
-    page_suffix = f"  (Page {page_num})" if page_num > 1 else ""
     _draw_centered_text(
         draw,
         (margin_x, top_y, margin_x + table_w, top_y + depot_h),
-        f"DEPOT : {depot}{page_suffix}",
+        f"DEPOT : {depot}",
         f_title,
         fill="#000000",
     )
 
     # Report No & Date Sub-header Box
     meta_y = top_y + depot_h
-    meta_h = 74
+    meta_h = 88
     w_lbl = int(table_w * 0.25)
     w_no = int(table_w * 0.22)
     w_dt = table_w - w_lbl - w_no
 
-    draw.rectangle((margin_x, meta_y, margin_x + w_lbl, meta_y + meta_h), outline="#000000", width=3, fill="#ffffff")
+    draw.rectangle((margin_x, meta_y, margin_x + w_lbl, meta_y + meta_h), outline="#000000", width=4, fill="#ffffff")
     _draw_centered_text(draw, (margin_x, meta_y, margin_x + w_lbl, meta_y + meta_h), "Report No", f_sec)
 
-    draw.rectangle((margin_x + w_lbl, meta_y, margin_x + w_lbl + w_no, meta_y + meta_h), outline="#000000", width=3, fill="#ffffff")
+    draw.rectangle((margin_x + w_lbl, meta_y, margin_x + w_lbl + w_no, meta_y + meta_h), outline="#000000", width=4, fill="#ffffff")
     _draw_centered_text(draw, (margin_x + w_lbl, meta_y, margin_x + w_lbl + w_no, meta_y + meta_h), str(report_no), f_sec)
 
-    draw.rectangle((margin_x + w_lbl + w_no, meta_y, margin_x + table_w, meta_y + meta_h), outline="#000000", width=3, fill="#ffffff")
+    draw.rectangle((margin_x + w_lbl + w_no, meta_y, margin_x + table_w, meta_y + meta_h), outline="#000000", width=4, fill="#ffffff")
     _draw_centered_text(
         draw,
         (margin_x + w_lbl + w_no, meta_y, margin_x + table_w, meta_y + meta_h),
@@ -342,21 +418,35 @@ def _new_a4_page(depot, report_no, disp_date, page_num, total_pages_hint=None):
     return img, draw, margin_x, table_w, meta_y + meta_h
 
 
+def _stamp_page_numbers(pages):
+    _, _, _, f_small = get_fonts()
+    total_p = len(pages)
+    for idx, img in enumerate(pages, start=1):
+        draw = ImageDraw.Draw(img)
+        footer_box = (85, A4_HEIGHT - 110, A4_WIDTH - 85, A4_HEIGHT - 45)
+        _draw_centered_text(
+            draw,
+            footer_box,
+            f"Page {idx} of {total_p}",
+            f_small,
+            fill="#000000",
+        )
+
+
 def build_a4_pages(depot, report_no, report_date, d_df, i_df, summary_df):
-    f_title, f_sec, f_body, f_small = get_fonts()
+    _, f_sec, f_body, _ = get_fonts()
     disp_date = format_display_date(report_date)
-    bottom_limit = A4_HEIGHT - 100
+    bottom_limit = A4_HEIGHT - 140
 
     pages = []
     page_num = 1
     img, draw, x_left, table_w, y = _new_a4_page(depot, report_no, disp_date, page_num)
 
-    section_h = 64
-    header_h = 58
-    row_h = 54
-    gap_h = 44
+    section_h = 78
+    header_h = 72
+    row_h = 70
+    gap_h = 48
 
-    # 4-column layout matching reference image
     col4 = [
         int(table_w * 0.34),
         int(table_w * 0.18),
@@ -364,7 +454,6 @@ def build_a4_pages(depot, report_no, report_date, d_df, i_df, summary_df):
         table_w - int(table_w * 0.34) - int(table_w * 0.18) - int(table_w * 0.18),
     ]
 
-    # 5-column layout for Brand Stock Summary
     col5 = [
         int(table_w * 0.32),
         int(table_w * 0.17),
@@ -383,7 +472,7 @@ def build_a4_pages(depot, report_no, report_date, d_df, i_df, summary_df):
     # ---------------- DISPATCH (OUT) ----------------
     ensure_space(gap_h + section_h + header_h + row_h)
     y += gap_h
-    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=2, fill="#ffffff")
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=3, fill="#ffffff")
     _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "DISPATCH (OUT)", f_sec)
     y += section_h
 
@@ -410,7 +499,7 @@ def build_a4_pages(depot, report_no, report_date, d_df, i_df, summary_df):
     # ---------------- INWARD TRUCKS (IN) ----------------
     ensure_space(gap_h + section_h + header_h + row_h)
     y += gap_h
-    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=2, fill="#ffffff")
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=3, fill="#ffffff")
     _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "INWARD TRUCKS (IN)", f_sec)
     y += section_h
 
@@ -438,7 +527,7 @@ def build_a4_pages(depot, report_no, report_date, d_df, i_df, summary_df):
     needed_summary = gap_h + section_h + header_h + (len(summary_df) * row_h)
     ensure_space(needed_summary)
     y += gap_h
-    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=2, fill="#ffffff")
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#000000", width=3, fill="#ffffff")
     _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "BRAND STOCK SUMMARY", f_sec)
     y += section_h
 
@@ -458,6 +547,7 @@ def build_a4_pages(depot, report_no, report_date, d_df, i_df, summary_df):
         y += row_h
 
     pages.append(img)
+    _stamp_page_numbers(pages)
     return pages
 
 
@@ -473,7 +563,7 @@ def pages_to_zip_bytes(pages, depot, report_date):
     with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for idx, p_img in enumerate(pages, start=1):
             p_bytes = pages_to_jpg_bytes(p_img)
-            zf.writestr(f"{depot}_{report_date}_page_{idx}.jpg", p_bytes)
+            zf.writestr(f"{depot}_{report_date}_page_{idx}_of_{len(pages)}.jpg", p_bytes)
     zip_buf.seek(0)
     return zip_buf.getvalue()
 
@@ -599,6 +689,22 @@ def main():
         if st.button("LOGOUT", use_container_width=True):
             st.session_state.user = None
             st.rerun()
+
+    # Admin-only Import Section
+    if is_admin:
+        with st.expander("ADMIN IMPORT EXCEL", expanded=False):
+            imp_file = st.file_uploader(
+                "Upload Excel (.xlsx)",
+                type=["xlsx"],
+                key="admin_excel_uploader",
+            )
+            if st.button("IMPORT EXCEL"):
+                if imp_file is not None:
+                    d_cnt, i_cnt = import_excel_file(conn, imp_file, depot, report_date)
+                    st.success(f"Import complete: Dispatch {d_cnt}, Inward {i_cnt} entries added.")
+                    st.rerun()
+                else:
+                    st.warning("Pehle Excel (.xlsx) file select karein.")
 
     tab1, tab2, tab3 = st.tabs(
         ["1. Dispatch / OUT", "2. Inward Trucks / IN", "3. Brand Stock Summary"]
