@@ -2,8 +2,8 @@ import os
 import sys
 import sqlite3
 import traceback
-import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+# import tkinter as tk
+# from tkinter import ttk, messagebox, filedialog
 from datetime import date, datetime, timedelta
 
 from openpyxl import Workbook, load_workbook
