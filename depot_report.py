@@ -44,7 +44,7 @@ USERS = {
 }
 
 
-def get_fonts(title_size=250, section_size=100, body_size=100, small_size=100):
+def get_fonts(title_size=54, section_size=38, body_size=32, small_size=28):
     bold_candidates = [
         r"C:\Windows\Fonts\arialbd.ttf",
         r"C:\Windows\Fonts\calibrib.ttf",
@@ -103,6 +103,22 @@ def get_connection():
 
     cur.execute(
         """
+        CREATE TABLE IF NOT EXISTS pending_party_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            depot TEXT NOT NULL,
+            report_date TEXT NOT NULL,
+            party TEXT NOT NULL,
+            bag INTEGER NOT NULL,
+            brand TEXT NOT NULL,
+            truck TEXT DEFAULT '',
+            created_by TEXT DEFAULT 'admin',
+            status TEXT DEFAULT 'PENDING'
+        )
+        """
+    )
+
+    cur.execute(
+        """
         CREATE TABLE IF NOT EXISTS dispatch_entries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             depot TEXT NOT NULL,
@@ -110,7 +126,8 @@ def get_connection():
             party TEXT NOT NULL,
             bag INTEGER NOT NULL,
             brand TEXT NOT NULL,
-            truck TEXT DEFAULT ''
+            truck TEXT DEFAULT '',
+            approved_by TEXT DEFAULT ''
         )
         """
     )
@@ -189,6 +206,10 @@ def save_meta(conn, depot, report_date, report_no, p_op, pl_op, x_op, is_admin):
 def clear_day_data(conn, depot, report_date):
     cur = conn.cursor()
     cur.execute(
+        "DELETE FROM pending_party_entries WHERE depot = ? AND report_date = ?",
+        (depot, report_date),
+    )
+    cur.execute(
         "DELETE FROM dispatch_entries WHERE depot = ? AND report_date = ?",
         (depot, report_date),
     )
@@ -207,7 +228,55 @@ def clear_day_data(conn, depot, report_date):
     conn.commit()
 
 
-def import_excel_file(conn, uploaded_file, depot, report_date):
+def submit_party_for_approval(conn, depot, report_date, party, bag, brand, truck, user_id):
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO pending_party_entries
+        (depot, report_date, party, bag, brand, truck, created_by, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING')
+        """,
+        (depot, report_date, party.strip(), int(bag), brand, truck.strip(), user_id),
+    )
+    conn.commit()
+
+
+def approve_pending_entry(conn, pending_id, depot, report_date, approver_id):
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT depot, report_date, party, bag, brand, truck
+        FROM pending_party_entries
+        WHERE id = ? AND depot = ? AND report_date = ? AND status = 'PENDING'
+        """,
+        (int(pending_id), depot, report_date),
+    )
+    row = cur.fetchone()
+    if not row:
+        return False
+
+    p_depot, p_date, party, bag, brand, truck = row
+    cur.execute(
+        """
+        INSERT INTO dispatch_entries
+        (depot, report_date, party, bag, brand, truck, approved_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (p_depot, p_date, party, int(bag), brand, truck, approver_id),
+    )
+    cur.execute(
+        """
+        UPDATE pending_party_entries
+        SET status = 'APPROVED'
+        WHERE id = ?
+        """,
+        (int(pending_id),),
+    )
+    conn.commit()
+    return True
+
+
+def import_excel_file(conn, uploaded_file, depot, report_date, is_admin, user_id):
     cur = conn.cursor()
     imported_d = 0
     imported_i = 0
@@ -215,7 +284,6 @@ def import_excel_file(conn, uploaded_file, depot, report_date):
     xl = pd.ExcelFile(uploaded_file)
     sheet_names = [s.lower() for s in xl.sheet_names]
 
-    # Match Dispatch sheet
     d_sheet = next(
         (xl.sheet_names[idx] for idx, name in enumerate(sheet_names) if "dispatch" in name or "out" in name),
         None,
@@ -239,18 +307,30 @@ def import_excel_file(conn, uploaded_file, depot, report_date):
             truck = str(row.get("truck", "")).strip()
             if truck.lower() == "nan":
                 truck = ""
-            cur.execute(
-                """
-                INSERT INTO dispatch_entries (depot, report_date, party, bag, brand, truck)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (depot, report_date, party, bag, brand, truck),
-            )
+
+            if is_admin:
+                # Admin party entries go to pending approval for Depot Incharge
+                cur.execute(
+                    """
+                    INSERT INTO pending_party_entries
+                    (depot, report_date, party, bag, brand, truck, created_by, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING')
+                    """,
+                    (depot, report_date, party, bag, brand, truck, user_id),
+                )
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO dispatch_entries
+                    (depot, report_date, party, bag, brand, truck, approved_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (depot, report_date, party, bag, brand, truck, user_id),
+                )
             imported_d += 1
 
-    # Match Inward sheet
     i_sheet = next(
-        (xl.sheet_names[idx] for idx, name in enumerate(sheet_names) if "inward" in name or "in" in name and "summary" not in name),
+        (xl.sheet_names[idx] for idx, name in enumerate(sheet_names) if "inward" in name or ("in" in name and "summary" not in name)),
         None,
     )
     if i_sheet:
@@ -369,8 +449,8 @@ def _draw_row(draw, x_left, y, col_widths, row_h, values, font):
         cur_x += w
 
 
-def _new_a4_page(depot, report_no, disp_date, page_num):
-    f_title, f_sec, f_body, f_small = get_fonts()
+def _new_a4_page(depot, report_no, disp_date):
+    f_title, f_sec, _, _ = get_fonts()
     img = Image.new("RGB", (A4_WIDTH, A4_HEIGHT), "#ffffff")
     draw = ImageDraw.Draw(img)
 
@@ -378,7 +458,6 @@ def _new_a4_page(depot, report_no, disp_date, page_num):
     top_y = 85
     table_w = A4_WIDTH - (2 * margin_x)
 
-    # Top Depot Header Box
     depot_h = 100
     draw.rectangle(
         (margin_x, top_y, margin_x + table_w, top_y + depot_h),
@@ -394,12 +473,10 @@ def _new_a4_page(depot, report_no, disp_date, page_num):
         fill="#000000",
     )
 
-    # Report No & Date Sub-header Box
     meta_y = top_y + depot_h
     meta_h = 88
     w_lbl = int(table_w * 0.25)
     w_no = int(table_w * 0.22)
-    w_dt = table_w - w_lbl - w_no
 
     draw.rectangle((margin_x, meta_y, margin_x + w_lbl, meta_y + meta_h), outline="#000000", width=4, fill="#ffffff")
     _draw_centered_text(draw, (margin_x, meta_y, margin_x + w_lbl, meta_y + meta_h), "Report No", f_sec)
@@ -439,8 +516,7 @@ def build_a4_pages(depot, report_no, report_date, d_df, i_df, summary_df):
     bottom_limit = A4_HEIGHT - 140
 
     pages = []
-    page_num = 1
-    img, draw, x_left, table_w, y = _new_a4_page(depot, report_no, disp_date, page_num)
+    img, draw, x_left, table_w, y = _new_a4_page(depot, report_no, disp_date)
 
     section_h = 78
     header_h = 72
@@ -463,11 +539,10 @@ def build_a4_pages(depot, report_no, report_date, d_df, i_df, summary_df):
     ]
 
     def ensure_space(needed_h):
-        nonlocal img, draw, y, page_num
+        nonlocal img, draw, y
         if y + needed_h > bottom_limit:
             pages.append(img)
-            page_num += 1
-            img, draw, x_left, table_w, y = _new_a4_page(depot, report_no, disp_date, page_num)
+            img, draw, x_left, table_w, y = _new_a4_page(depot, report_no, disp_date)
 
     # ---------------- DISPATCH (OUT) ----------------
     ensure_space(gap_h + section_h + header_h + row_h)
@@ -700,8 +775,12 @@ def main():
             )
             if st.button("IMPORT EXCEL"):
                 if imp_file is not None:
-                    d_cnt, i_cnt = import_excel_file(conn, imp_file, depot, report_date)
-                    st.success(f"Import complete: Dispatch {d_cnt}, Inward {i_cnt} entries added.")
+                    d_cnt, i_cnt = import_excel_file(
+                        conn, imp_file, depot, report_date, is_admin, user_id
+                    )
+                    st.success(
+                        f"Import complete: Party entries sent for approval ({d_cnt}), Inward ({i_cnt}) saved."
+                    )
                     st.rerun()
                 else:
                     st.warning("Pehle Excel (.xlsx) file select karein.")
@@ -711,36 +790,75 @@ def main():
     )
 
     with tab1:
-        st.markdown("#### Add Dispatch / Outward")
-        with st.form("dispatch_form", clear_on_submit=True):
-            d1, d2, d3, d4, d5 = st.columns([3, 1, 1.5, 2, 1.5])
-            party = d1.text_input("Party", placeholder="Party name")
-            bag_val = d2.number_input("Bag", min_value=1, step=1, value=1)
-            brand = d3.selectbox("Brand", PRODUCTS, key="d_brand")
-            truck = d4.text_input("Truck", placeholder="Truck no")
-            add_d = d5.form_submit_button("ADD DISPATCH", use_container_width=True)
+        if is_admin:
+            st.markdown("#### Add Party Dispatch Entry (Admin Only - Goes for Depot Incharge Approval)")
+            with st.form("party_dispatch_form", clear_on_submit=True):
+                d1, d2, d3, d4, d5 = st.columns([3, 1, 1.5, 2, 1.5])
+                party = d1.text_input("Party", placeholder="Party name")
+                bag_val = d2.number_input("Bag", min_value=1, step=1, value=1)
+                brand = d3.selectbox("Brand", PRODUCTS, key="d_brand")
+                truck = d4.text_input("Truck", placeholder="Truck no")
+                add_d = d5.form_submit_button("SEND FOR APPROVAL", use_container_width=True)
 
-        if add_d:
-            if not party.strip():
-                st.warning("Party ka naam enter karein.")
-            else:
-                cur = conn.cursor()
-                cur.execute(
-                    """
-                    INSERT INTO dispatch_entries (depot, report_date, party, bag, brand, truck)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """,
-                    (depot, report_date, party.strip(), int(bag_val), brand, truck.strip()),
+            if add_d:
+                if not party.strip():
+                    st.warning("Party ka naam enter karein.")
+                else:
+                    submit_party_for_approval(
+                        conn, depot, report_date, party, bag_val, brand, truck, user_id
+                    )
+                    st.success("Party entry bhej di gayi hai. Depot Incharge ke Approve karne ke baad save hogi.")
+                    st.rerun()
+
+            pend_df_admin = pd.read_sql_query(
+                """
+                SELECT id AS ID, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck, status AS Status
+                FROM pending_party_entries
+                WHERE depot = ? AND report_date = ? AND status = 'PENDING'
+                ORDER BY id DESC
+                """,
+                conn,
+                params=(depot, report_date),
+            )
+            st.markdown("##### Pending Party Entries (Awaiting Depot Incharge Approval)")
+            st.dataframe(pend_df_admin, use_container_width=True, hide_index=True)
+
+        else:
+            st.markdown("#### Approve Party Entries (Depot Incharge Only)")
+            pend_df = pd.read_sql_query(
+                """
+                SELECT id AS ID, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
+                FROM pending_party_entries
+                WHERE depot = ? AND report_date = ? AND status = 'PENDING'
+                ORDER BY id DESC
+                """,
+                conn,
+                params=(depot, report_date),
+            )
+            st.dataframe(pend_df, use_container_width=True, hide_index=True)
+
+            if not pend_df.empty:
+                ap_c1, ap_c2 = st.columns([2, 6])
+                pending_options = pend_df["ID"].tolist()
+                sel_pend_id = ap_c1.selectbox(
+                    "Select Pending Entry ID to Approve",
+                    options=pending_options,
+                    key="sel_pend_id",
                 )
-                conn.commit()
-                st.rerun()
+                if ap_c2.button("APPROVE & SAVE ENTRY"):
+                    if approve_pending_entry(conn, sel_pend_id, depot, report_date, user_id):
+                        st.success(f"Entry #{sel_pend_id} approve ho kar save ho gayi.")
+                        st.rerun()
+            else:
+                st.info("Is date ke liye koi pending party entry nahi hai.")
 
+        st.markdown("##### Approved & Saved Dispatch Entries (Latest Top)")
         d_df = pd.read_sql_query(
             """
             SELECT id AS ID, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
             FROM dispatch_entries
             WHERE depot = ? AND report_date = ?
-            ORDER BY id ASC
+            ORDER BY id DESC
             """,
             conn,
             params=(depot, report_date),
@@ -749,7 +867,7 @@ def main():
 
         del_c1, del_c2 = st.columns([2, 6])
         del_d_id = del_c1.number_input(
-            "Delete Dispatch ID (#)", min_value=0, step=1, value=0, key="del_d_id"
+            "Delete Approved Dispatch ID (#)", min_value=0, step=1, value=0, key="del_d_id"
         )
         if del_c2.button("DELETE DISPATCH"):
             if del_d_id > 0:
@@ -788,10 +906,10 @@ def main():
 
         i_df = pd.read_sql_query(
             """
-            SELECT id AS ID, truck AS Truck, bag AS Bag, brand AS Brand, roadline AS RoadLine
+            SELECT id AS ID, report_date AS Date, truck AS Truck, bag AS Bag, brand AS Brand, roadline AS RoadLine
             FROM inward_entries
             WHERE depot = ? AND report_date = ?
-            ORDER BY id ASC
+            ORDER BY id DESC
             """,
             conn,
             params=(depot, report_date),
@@ -851,51 +969,78 @@ def main():
         )
         st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
+    # ========================================================
+    # REPORT GENERATE, PRINT & EXPORT SECTION (DATE SELECTABLE)
+    # ========================================================
     st.divider()
+    st.markdown("### Generate & Print Report")
 
-    d_df_all = pd.read_sql_query(
+    gen_c1, gen_c2 = st.columns([2, 4])
+    with gen_c1:
+        gen_date_input = st.date_input(
+            "Select Report Date to Generate",
+            value=selected_date,
+            key="report_generate_date",
+        )
+        gen_date = str(gen_date_input)
+
+    gen_r_no, gen_p_op, gen_pl_op, gen_x_op = load_meta(conn, depot, gen_date)
+
+    d_df_gen = pd.read_sql_query(
         """
         SELECT party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
         FROM dispatch_entries
         WHERE depot = ? AND report_date = ?
-        ORDER BY id ASC
+        ORDER BY id DESC
         """,
         conn,
-        params=(depot, report_date),
+        params=(depot, gen_date),
     )
-    i_df_all = pd.read_sql_query(
+    i_df_gen = pd.read_sql_query(
         """
         SELECT truck AS Truck, bag AS Bag, brand AS Brand, roadline AS RoadLine
         FROM inward_entries
         WHERE depot = ? AND report_date = ?
-        ORDER BY id ASC
+        ORDER BY id DESC
         """,
         conn,
-        params=(depot, report_date),
+        params=(depot, gen_date),
     )
-    summary_df_all = compute_summary_rows(
-        conn, depot, report_date, db_p_op, db_pl_op, db_x_op
+    summary_df_gen = compute_summary_rows(
+        conn, depot, gen_date, gen_p_op, gen_pl_op, gen_x_op
     )
 
     a4_pages = build_a4_pages(
-        depot, report_no, report_date, d_df_all, i_df_all, summary_df_all
+        depot, gen_r_no, gen_date, d_df_gen, i_df_gen, summary_df_gen
     )
 
-    b_left, b_excel, b_jpg, b_pdf = st.columns([4.2, 1.4, 1.5, 1.4])
-    with b_left:
+    with gen_c2:
+        st.markdown("<br>", unsafe_allow_html=True)
         st.markdown(
-            f"**User:** {user_id} | **Depot:** {depot} | **Date:** {report_date} | "
-            f"**A4 Pages:** {len(a4_pages)}"
+            f"**Report Date:** {format_display_date(gen_date)} ({gen_date}) | "
+            f"**Depot:** {depot} | **A4 Pages:** {len(a4_pages)}"
+        )
+
+    b_print, b_excel, b_jpg, b_pdf = st.columns([1.4, 1.4, 1.5, 1.4])
+
+    with b_print:
+        st.markdown(
+            """
+            <button onclick="window.print()" style="width:100%;padding:0.45rem 0.75rem;background-color:#2e7d32;color:white;border:none;border-radius:0.5rem;font-weight:600;cursor:pointer;">
+                Print Report
+            </button>
+            """,
+            unsafe_allow_html=True,
         )
 
     with b_excel:
         excel_bytes = build_excel_bytes(
-            depot, report_no, report_date, d_df_all, i_df_all, summary_df_all
+            depot, gen_r_no, gen_date, d_df_gen, i_df_gen, summary_df_gen
         )
         st.download_button(
             label="Export Excel",
             data=excel_bytes,
-            file_name=f"{depot}_{report_date}_report.xlsx",
+            file_name=f"{depot}_{gen_date}_report.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
         )
@@ -905,15 +1050,15 @@ def main():
             st.download_button(
                 label="Export JPG (A4)",
                 data=pages_to_jpg_bytes(a4_pages[0]),
-                file_name=f"{depot}_{report_date}_A4_page_1.jpg",
+                file_name=f"{depot}_{gen_date}_A4_page_1.jpg",
                 mime="image/jpeg",
                 use_container_width=True,
             )
         else:
             st.download_button(
                 label=f"Export JPG ({len(a4_pages)} Pages ZIP)",
-                data=pages_to_zip_bytes(a4_pages, depot, report_date),
-                file_name=f"{depot}_{report_date}_A4_pages.zip",
+                data=pages_to_zip_bytes(a4_pages, depot, gen_date),
+                file_name=f"{depot}_{gen_date}_A4_pages.zip",
                 mime="application/zip",
                 use_container_width=True,
             )
@@ -922,7 +1067,7 @@ def main():
         st.download_button(
             label="Export PDF (A4)",
             data=pages_to_pdf_bytes(a4_pages),
-            file_name=f"{depot}_{report_date}_A4_report.pdf",
+            file_name=f"{depot}_{gen_date}_A4_report.pdf",
             mime="application/pdf",
             use_container_width=True,
         )
