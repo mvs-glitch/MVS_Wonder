@@ -369,6 +369,32 @@ def build_jpg_bytes(depot, report_no, report_date, d_df, i_df, summary_df):
     return buf.getvalue()
 
 
+def show_login():
+    st.markdown(
+        """
+        <div style="background-color:#0d47a1;padding:12px 20px;border-radius:6px;margin-bottom:18px;">
+            <span style="color:white;font-size:22px;font-weight:bold;">DEPOT REPORT SYSTEM</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.subheader("Depot Agent Login")
+
+    with st.form("login_form"):
+        uid_input = st.text_input("Login ID")
+        pwd_input = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("LOGIN")
+
+    if submitted:
+        uid = uid_input.strip().lower().replace(" ", "")
+        pwd = pwd_input.strip()
+        if uid in USERS and USERS[uid][0] == pwd:
+            st.session_state.user = (uid, USERS[uid][1])
+            st.rerun()
+        else:
+            st.error("Galat Login ID ya Password.")
+
+
 def main():
     st.set_page_config(page_title="Depot Report System", layout="wide")
     conn = get_connection()
@@ -377,23 +403,7 @@ def main():
         st.session_state.user = None
 
     if not st.session_state.user:
-        st.title("DEPOT REPORT SYSTEM")
-        st.subheader("Depot Agent Login")
-
-        with st.form("login_form"):
-            uid_input = st.text_input("Login ID")
-            pwd_input = st.text_input("Password", type="password")
-            submitted = st.form_submit_button("LOGIN")
-
-        if submitted:
-            uid = uid_input.strip().lower().replace(" ", "")
-            pwd = pwd_input.strip()
-            if uid in USERS and USERS[uid][0] == pwd:
-                st.session_state.user = (uid, USERS[uid][1])
-                st.rerun()
-            else:
-                st.error("Galat Login ID ya Password.")
-
+        show_login()
         return
 
     user_id, assigned_depot = st.session_state.user
@@ -459,4 +469,168 @@ def main():
         with st.form("dispatch_form", clear_on_submit=True):
             d1, d2, d3, d4, d5 = st.columns([3, 1, 1.5, 2, 1.5])
             party = d1.text_input("Party", placeholder="Party name")
-            bag_val = d2.number_input
+            bag_val = d2.number_input("Bag", min_value=1, step=1, value=1)
+            brand = d3.selectbox("Brand", PRODUCTS, key="d_brand")
+            truck = d4.text_input("Truck", placeholder="Truck no")
+            add_d = d5.form_submit_button("ADD DISPATCH", use_container_width=True)
+
+        if add_d:
+            if not party.strip():
+                st.warning("Party ka naam enter karein.")
+            else:
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    INSERT INTO dispatch_entries (depot, report_date, party, bag, brand, truck)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (depot, report_date, party.strip(), int(bag_val), brand, truck.strip()),
+                )
+                conn.commit()
+                st.rerun()
+
+        d_df = pd.read_sql_query(
+            """
+            SELECT id AS ID, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
+            FROM dispatch_entries
+            WHERE depot = ? AND report_date = ?
+            ORDER BY id ASC
+            """,
+            conn,
+            params=(depot, report_date),
+        )
+        st.dataframe(d_df, use_container_width=True, hide_index=True)
+
+        del_c1, del_c2 = st.columns([2, 6])
+        del_d_id = del_c1.number_input(
+            "Delete Dispatch ID (#)", min_value=0, step=1, value=0, key="del_d_id"
+        )
+        if del_c2.button("DELETE DISPATCH"):
+            if del_d_id > 0:
+                cur = conn.cursor()
+                cur.execute(
+                    "DELETE FROM dispatch_entries WHERE id = ? AND depot = ? AND report_date = ?",
+                    (int(del_d_id), depot, report_date),
+                )
+                conn.commit()
+                st.rerun()
+
+    with tab2:
+        st.markdown("#### Add Inward Truck / In")
+        with st.form("inward_form", clear_on_submit=True):
+            i1, i2, i3, i4, i5 = st.columns([2, 1, 1.5, 3, 1.5])
+            in_truck = i1.text_input("Truck", placeholder="Truck no", key="i_truck")
+            in_bag = i2.number_input("Bag", min_value=1, step=1, value=1, key="i_bag")
+            in_brand = i3.selectbox("Brand", PRODUCTS, key="i_brand")
+            roadline = i4.text_input("RoadLine", placeholder="RoadLine / From")
+            add_i = i5.form_submit_button("ADD INWARD", use_container_width=True)
+
+        if add_i:
+            if not in_truck.strip():
+                st.warning("Truck number enter karein.")
+            else:
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    INSERT INTO inward_entries (depot, report_date, truck, bag, brand, roadline)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (depot, report_date, in_truck.strip(), int(in_bag), in_brand, roadline.strip()),
+                )
+                conn.commit()
+                st.rerun()
+
+        i_df = pd.read_sql_query(
+            """
+            SELECT id AS ID, truck AS Truck, bag AS Bag, brand AS Brand, roadline AS RoadLine
+            FROM inward_entries
+            WHERE depot = ? AND report_date = ?
+            ORDER BY id ASC
+            """,
+            conn,
+            params=(depot, report_date),
+        )
+        st.dataframe(i_df, use_container_width=True, hide_index=True)
+
+        idel_c1, idel_c2 = st.columns([2, 6])
+        del_i_id = idel_c1.number_input(
+            "Delete Inward ID (#)", min_value=0, step=1, value=0, key="del_i_id"
+        )
+        if idel_c2.button("DELETE INWARD"):
+            if del_i_id > 0:
+                cur = conn.cursor()
+                cur.execute(
+                    "DELETE FROM inward_entries WHERE id = ? AND depot = ? AND report_date = ?",
+                    (int(del_i_id), depot, report_date),
+                )
+                conn.commit()
+                st.rerun()
+
+    with tab3:
+        st.markdown(
+            "#### BRAND STOCK SUMMARY - ADMIN EDIT OP-ST"
+            if is_admin
+            else "#### BRAND STOCK SUMMARY - OP-ST LOCKED"
+        )
+
+        with st.form("meta_form"):
+            m1, m2, m3 = st.columns(3)
+            p_op = m1.number_input(
+                "Wonder PPC OP-ST", value=db_p_op, step=1, disabled=not is_admin
+            )
+            pl_op = m2.number_input(
+                "Wonder PLUS OP-ST", value=db_pl_op, step=1, disabled=not is_admin
+            )
+            x_op = m3.number_input(
+                "Wonder Xtreme OP-ST", value=db_x_op, step=1, disabled=not is_admin
+            )
+            save_btn = st.form_submit_button("Save Report Details / OP-ST")
+
+        if save_btn:
+            save_meta(
+                conn,
+                depot,
+                report_date,
+                report_no,
+                int(p_op),
+                int(pl_op),
+                int(x_op),
+                is_admin,
+            )
+            st.success("Report details save ho gayi.")
+            st.rerun()
+
+        summary_df = compute_summary_rows(
+            conn, depot, report_date, int(p_op), int(pl_op), int(x_op)
+        )
+        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+
+    st.divider()
+
+    d_df_all = pd.read_sql_query(
+        """
+        SELECT id AS ID, report_date AS Date, party AS Party, bag AS Bag, brand AS Brand, truck AS Truck
+        FROM dispatch_entries
+        WHERE depot = ? AND report_date = ?
+        ORDER BY id ASC
+        """,
+        conn,
+        params=(depot, report_date),
+    )
+    i_df_all = pd.read_sql_query(
+        """
+        SELECT id AS ID, truck AS Truck, bag AS Bag, brand AS Brand, roadline AS RoadLine
+        FROM inward_entries
+        WHERE depot = ? AND report_date = ?
+        ORDER BY id ASC
+        """,
+        conn,
+        params=(depot, report_date),
+    )
+    summary_df_all = compute_summary_rows(
+        conn, depot, report_date, db_p_op, db_pl_op, db_x_op
+    )
+
+    b_left, b_mid, b_right = st.columns([5, 1.8, 1.8])
+    with b_left:
+        st.markdown(
