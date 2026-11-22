@@ -214,7 +214,7 @@ def main():
             else:
                 st.error("Galat Login ID ya Password.")
 
-        # st.caption("Admin: admin / admin123")
+        st.caption("Admin: admin / admin123")
         return
 
     user_id, assigned_depot = st.session_state.user
@@ -293,6 +293,12 @@ def main():
             params=(depot, report_date),
         )
         st.dataframe(d_df, use_container_width=True, hide_index=True)
+        st.download_button(
+            label="Export Dispatch CSV",
+            data=d_df.to_csv(index=False).encode("utf-8"),
+            file_name=f"{depot}_{report_date}_dispatch.csv",
+            mime="text/csv",
+        )
 
     with tab2:
         st.subheader("Add Inward Truck / In")
@@ -331,6 +337,12 @@ def main():
             params=(depot, report_date),
         )
         st.dataframe(i_df, use_container_width=True, hide_index=True)
+        st.download_button(
+            label="Export Inward CSV",
+            data=i_df.to_csv(index=False).encode("utf-8"),
+            file_name=f"{depot}_{report_date}_inward.csv",
+            mime="text/csv",
+        )
 
     with tab3:
         st.subheader(
@@ -370,6 +382,12 @@ def main():
             conn, depot, report_date, int(p_op), int(pl_op), int(x_op)
         )
         st.dataframe(summary_df, use_container_width=True, hide_index=True)
+        st.download_button(
+            label="Export Summary CSV",
+            data=summary_df.to_csv(index=False).encode("utf-8"),
+            file_name=f"{depot}_{report_date}_summary.csv",
+            mime="text/csv",
+        )
 
 
 if __name__ == "__main__":
