@@ -104,8 +104,8 @@ def inject_mvs_wonder_theme_css():
     }
 
     .block-container {
-        padding-top: 1.0rem;
-        padding-bottom: 2.2rem;
+        padding-top: 2.8rem !important;
+        padding-bottom: 2.2rem !important;
         max-width: 100%;
         background-color: #FFFFFF !important;
     }
@@ -114,10 +114,11 @@ def inject_mvs_wonder_theme_css():
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 8px 18px;
+        padding: 10px 18px;
+        margin-top: 8px;
         background-color: #FFFFFF !important;
         border-bottom: 1px solid #E2E8F0;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
         flex-wrap: wrap;
         gap: 8px;
     }
@@ -362,6 +363,12 @@ def inject_mvs_wonder_theme_css():
     }
 
     @media (max-width: 768px) {
+        .block-container {
+            padding-top: 3.4rem !important;
+        }
+        .brand-top-strip {
+            margin-top: 12px;
+        }
         .mvs-brand-mark {
             font-size: 16px;
         }
