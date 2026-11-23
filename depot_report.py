@@ -49,36 +49,30 @@ USERS = {
 
 
 def get_fonts(
-    title_size=260,
-    section_size=140,
-    body_size=110,
-    small_size=80
+    title_size=180,
+    section_size=100,
+    body_size=70,
+    small_size=50,
 ):
-    bold_candidates = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        os.path.join(APP_DIR, "DejaVuSans-Bold.ttf"),
-        r"C:\Windows\Fonts\arialbd.ttf",
-        r"C:\Windows\Fonts\calibrib.ttf",
-    ]
+    try:
+        bold_font = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        regular_font = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
-    regular_candidates = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        os.path.join(APP_DIR, "DejaVuSans.ttf"),
-        r"C:\Windows\Fonts\arial.ttf",
-        r"C:\Windows\Fonts\calibri.ttf",
-    ]
-
-    bold_path = next((p for p in bold_candidates if os.path.exists(p)), None)
-    regular_path = next((p for p in regular_candidates if os.path.exists(p)), None)
-
-    if bold_path and regular_path:
         return (
-            ImageFont.truetype(bold_path, title_size),
-            ImageFont.truetype(bold_path, section_size),
-            ImageFont.truetype(regular_path, body_size),
-            ImageFont.truetype(regular_path, small_size),
+            ImageFont.truetype(bold_font, title_size),
+            ImageFont.truetype(bold_font, section_size),
+            ImageFont.truetype(regular_font, body_size),
+            ImageFont.truetype(regular_font, small_size),
         )
 
+    except Exception as e:
+        print("FONT ERROR:", e)
+        return (
+            ImageFont.load_default(),
+            ImageFont.load_default(),
+            ImageFont.load_default(),
+            ImageFont.load_default(),
+        )
     fallback = ImageFont.load_default()
     return fallback, fallback, fallback, fallback
 
