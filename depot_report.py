@@ -1134,7 +1134,7 @@ def show_login():
         <div class="mvs-hero">
             <div class="mvs-title">
                 <span>MVS &amp; Wonder</span>
-                <span class="mvs-badge"></span>
+                <span class="mvs-badge">
             </div>
             <div class="mvs-subtitle">Mangilal Vijayvargiya &amp; Sons &bull; Depot &amp; Distribution Operations</div>
         </div>
