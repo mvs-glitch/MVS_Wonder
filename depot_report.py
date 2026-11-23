@@ -335,9 +335,10 @@ def inject_mvs_wonder_theme_css():
             color: #000000 !important;
         }
 
-        /* Internal action buttons: Sky Blue (#0284C7) with white text */
+        /* Unified button style matching LOGOUT & Delete: #0284C7 background with #FFFFFF text */
         .stButton > button,
         .stDownloadButton > button,
+        [data-testid="stFormSubmitButton"] > button,
         button[kind="primary"],
         button[kind="secondary"],
         button[data-testid="stBaseButton-primary"],
@@ -345,7 +346,7 @@ def inject_mvs_wonder_theme_css():
             background-color: #0284C7 !important;
             color: #FFFFFF !important;
             border: 1.5px solid #0369A1 !important;
-            border-radius: 8px;
+            border-radius: 8px !important;
             font-weight: 700 !important;
         }
 
@@ -354,39 +355,19 @@ def inject_mvs_wonder_theme_css():
         .stButton > button p,
         .stButton > button span,
         .stDownloadButton > button p,
-        .stDownloadButton > button span {
+        .stDownloadButton > button span,
+        [data-testid="stFormSubmitButton"] > button *,
+        [data-testid="stFormSubmitButton"] > button p,
+        [data-testid="stFormSubmitButton"] > button span {
             color: #FFFFFF !important;
         }
 
         .stButton > button:hover,
-        .stDownloadButton > button:hover {
+        .stDownloadButton > button:hover,
+        [data-testid="stFormSubmitButton"] > button:hover {
             background-color: #0369A1 !important;
             border-color: #075985 !important;
             color: #FFFFFF !important;
-        }
-
-        /* Login Sign In Button: Blue background (#0284C7) with Black font (#000000) */
-        .mvs-login-scope [data-testid="stFormSubmitButton"] > button,
-        .mvs-login-scope .stButton > button {
-            background-color: #0284C7 !important;
-            color: #000000 !important;
-            border: 2px solid #000000 !important;
-            border-radius: 6px;
-            font-weight: 800 !important;
-            padding: 0.55rem 1rem !important;
-        }
-
-        .mvs-login-scope [data-testid="stFormSubmitButton"] > button *,
-        .mvs-login-scope [data-testid="stFormSubmitButton"] > button p,
-        .mvs-login-scope [data-testid="stFormSubmitButton"] > button span,
-        .mvs-login-scope .stButton > button * {
-            color: #000000 !important;
-        }
-
-        .mvs-login-scope [data-testid="stFormSubmitButton"] > button:hover,
-        .mvs-login-scope .stButton > button:hover {
-            background-color: #0369A1 !important;
-            color: #000000 !important;
         }
 
         .mvs-footer {
@@ -411,7 +392,7 @@ def inject_mvs_wonder_theme_css():
             .internal-topbar-title {
                 font-size: 17px;
             }
-            .stButton > button, .stDownloadButton > button {
+            .stButton > button, .stDownloadButton > button, [data-testid="stFormSubmitButton"] > button {
                 min-height: 42px;
                 font-size: 14px;
             }
@@ -1146,7 +1127,6 @@ def show_login():
         st.warning("15 minute tak inactive rehne ke kaaran session logout ho gaya hai. Kripya dobara login karein.")
         st.session_state.session_expired_msg = False
 
-    st.markdown('<div class="mvs-login-scope">', unsafe_allow_html=True)
     render_brand_header()
 
     st.markdown(
@@ -1195,7 +1175,6 @@ def show_login():
         '<div class="mvs-footer">Copyright © All rights reserved</div>',
         unsafe_allow_html=True,
     )
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def main():
