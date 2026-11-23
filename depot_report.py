@@ -14,9 +14,9 @@ DB_FILE = os.path.join(APP_DIR, "depot_data.db")
 # 15 minutes inactivity timeout (15 * 60 = 900 seconds)
 SESSION_TIMEOUT_SECONDS = 15 * 60
 
-# Standard A5 proportion at 150 DPI (148mm x 210mm)
-A5_WIDTH = 874
-A5_HEIGHT = 1240
+# Standard A8 proportion at 150 DPI (52mm x 74mm)
+A8_WIDTH = 309
+A8_HEIGHT = 437
 
 DEPOTS = [
     "LNG",
@@ -48,7 +48,7 @@ USERS = {
 }
 
 
-def get_fonts(title_size=42, section_size=30, body_size=25, small_size=20):
+def get_fonts(title_size=18, section_size=13, body_size=11, small_size=9):
     bold_candidates = [
         os.path.join(APP_DIR, "DejaVuSans-Bold.ttf"),
         r"C:\Windows\Fonts\arialbd.ttf",
@@ -851,9 +851,9 @@ def compute_summary_rows(conn, depot, report_date, p_op, pl_op, x_op):
     tot_op = tot_in = tot_out = tot_bal = 0
 
     for label, key, op_val in [
-        ("Wonder PPC", "PPC", p_op),
-        ("Wonder PLUS", "PLUS", pl_op),
-        ("Wonder Xtreme", "Xtreme", x_op),
+        ("PPC", "PPC", p_op),
+        ("PLUS", "PLUS", pl_op),
+        ("Xtreme", "Xtreme", x_op),
     ]:
         in_val = in_map.get(key, 0)
         out_val = out_map.get(key, 0)
@@ -876,7 +876,7 @@ def compute_summary_rows(conn, depot, report_date, p_op, pl_op, x_op):
 
     rows.append(
         {
-            "Brand": "Grand Total",
+            "Brand": "Total",
             "OP-ST": tot_op,
             "In": tot_in,
             "Out": tot_out,
@@ -906,20 +906,20 @@ def _draw_row(draw, x_left, y, col_widths, row_h, values, font, fill="#FFFFFF"):
         cur_x += w
 
 
-def _new_a5_page(depot, disp_date):
+def _new_a8_page(depot, disp_date):
     f_title, f_sec, _, _ = get_fonts()
-    img = Image.new("RGB", (A5_WIDTH, A5_HEIGHT), "#FFFFFF")
+    img = Image.new("RGB", (A8_WIDTH, A8_HEIGHT), "#FFFFFF")
     draw = ImageDraw.Draw(img)
 
-    margin_x = 26
-    top_y = 26
-    table_w = A5_WIDTH - (2 * margin_x)
+    margin_x = 10
+    top_y = 10
+    table_w = A8_WIDTH - (2 * margin_x)
 
-    depot_h = 62
+    depot_h = 24
     draw.rectangle(
         (margin_x, top_y, margin_x + table_w, top_y + depot_h),
         outline="#0284C7",
-        width=3,
+        width=2,
         fill="#ECFDF5",
     )
     _draw_centered_text(
@@ -931,11 +931,11 @@ def _new_a5_page(depot, disp_date):
     )
 
     meta_y = top_y + depot_h
-    meta_h = 50
+    meta_h = 20
     draw.rectangle(
         (margin_x, meta_y, margin_x + table_w, meta_y + meta_h),
         outline="#0284C7",
-        width=3,
+        width=2,
         fill="#FFFFFF",
     )
     _draw_centered_text(
@@ -953,7 +953,7 @@ def _stamp_page_numbers(pages):
     total_p = len(pages)
     for idx, img in enumerate(pages, start=1):
         draw = ImageDraw.Draw(img)
-        footer_box = (26, A5_HEIGHT - 50, A5_WIDTH - 26, A5_HEIGHT - 14)
+        footer_box = (10, A8_HEIGHT - 20, A8_WIDTH - 10, A8_HEIGHT - 4)
         _draw_centered_text(
             draw,
             footer_box,
@@ -963,18 +963,18 @@ def _stamp_page_numbers(pages):
         )
 
 
-def build_a5_pages(depot, report_date, d_df, i_df, summary_df):
+def build_a8_pages(depot, report_date, d_df, i_df, summary_df):
     _, f_sec, f_body, _ = get_fonts()
     disp_date = format_display_date(report_date)
-    bottom_limit = A5_HEIGHT - 62
+    bottom_limit = A8_HEIGHT - 24
 
     pages = []
-    img, draw, x_left, table_w, y = _new_a5_page(depot, disp_date)
+    img, draw, x_left, table_w, y = _new_a8_page(depot, disp_date)
 
-    section_h = 46
-    header_h = 42
-    row_h = 40
-    gap_h = 18
+    section_h = 18
+    header_h = 17
+    row_h = 16
+    gap_h = 7
 
     col4 = [
         int(table_w * 0.34),
@@ -984,18 +984,18 @@ def build_a5_pages(depot, report_date, d_df, i_df, summary_df):
     ]
 
     col5 = [
-        int(table_w * 0.32),
-        int(table_w * 0.17),
-        int(table_w * 0.17),
-        int(table_w * 0.17),
-        table_w - int(table_w * 0.32) - (3 * int(table_w * 0.17)),
+        int(table_w * 0.28),
+        int(table_w * 0.18),
+        int(table_w * 0.18),
+        int(table_w * 0.18),
+        table_w - int(table_w * 0.28) - (3 * int(table_w * 0.18)),
     ]
 
     def ensure_space(needed_h):
         nonlocal img, draw, y
         if y + needed_h > bottom_limit:
             pages.append(img)
-            img, draw, x_left, table_w, y = _new_a5_page(depot, disp_date)
+            img, draw, x_left, table_w, y = _new_a8_page(depot, disp_date)
 
     ensure_space(gap_h + section_h + header_h + row_h)
     y += gap_h
@@ -1060,7 +1060,7 @@ def build_a5_pages(depot, report_date, d_df, i_df, summary_df):
     y += header_h
 
     for _, r in summary_df.iterrows():
-        row_fill = "#E0F2FE" if str(r["Brand"]) == "Grand Total" else "#FFFFFF"
+        row_fill = "#E0F2FE" if str(r["Brand"]) == "Total" else "#FFFFFF"
         _draw_row(
             draw,
             x_left,
@@ -1090,7 +1090,7 @@ def pages_to_zip_bytes(pages, depot, report_date):
     with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for idx, p_img in enumerate(pages, start=1):
             p_bytes = pages_to_jpg_bytes(p_img)
-            zf.writestr(f"{depot}_{report_date}_A5_page_{idx}_of_{len(pages)}.jpg", p_bytes)
+            zf.writestr(f"{depot}_{report_date}_A8_page_{idx}_of_{len(pages)}.jpg", p_bytes)
     zip_buf.seek(0)
     return zip_buf.getvalue()
 
@@ -1610,7 +1610,7 @@ def main():
         conn, depot, gen_date, gen_p_op, gen_pl_op, gen_x_op
     )
 
-    a5_pages = build_a5_pages(
+    a8_pages = build_a8_pages(
         depot, gen_date, d_df_gen, i_df_gen, summary_df_gen
     )
 
@@ -1618,7 +1618,7 @@ def main():
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown(
             f"**Report Date:** {format_display_date(gen_date)} ({gen_date}) | "
-            f"**Depot:** {depot} | **A5 Pages:** {len(a5_pages)}"
+            f"**Depot:** {depot} | **A8 Pages:** {len(a8_pages)}"
         )
 
     b_print, b_excel, b_jpg, b_pdf = st.columns([1.4, 1.4, 1.5, 1.4])
@@ -1646,28 +1646,28 @@ def main():
         )
 
     with b_jpg:
-        if len(a5_pages) == 1:
+        if len(a8_pages) == 1:
             st.download_button(
-                label="Export JPG (A5)",
-                data=pages_to_jpg_bytes(a5_pages[0]),
-                file_name=f"{depot}_{gen_date}_A5_page_1.jpg",
+                label="Export JPG (A8)",
+                data=pages_to_jpg_bytes(a8_pages[0]),
+                file_name=f"{depot}_{gen_date}_A8_page_1.jpg",
                 mime="image/jpeg",
                 use_container_width=True,
             )
         else:
             st.download_button(
-                label=f"Export JPG ({len(a5_pages)} Pages ZIP)",
-                data=pages_to_zip_bytes(a5_pages, depot, gen_date),
-                file_name=f"{depot}_{gen_date}_A5_pages.zip",
+                label=f"Export JPG ({len(a8_pages)} Pages ZIP)",
+                data=pages_to_zip_bytes(a8_pages, depot, gen_date),
+                file_name=f"{depot}_{gen_date}_A8_pages.zip",
                 mime="application/zip",
                 use_container_width=True,
             )
 
     with b_pdf:
         st.download_button(
-            label="Export PDF (A5)",
-            data=pages_to_pdf_bytes(a5_pages),
-            file_name=f"{depot}_{gen_date}_A5_report.pdf",
+            label="Export PDF (A8)",
+            data=pages_to_pdf_bytes(a8_pages),
+            file_name=f"{depot}_{gen_date}_A8_report.pdf",
             mime="application/pdf",
             use_container_width=True,
         )
