@@ -14,9 +14,9 @@ DB_FILE = os.path.join(APP_DIR, "depot_data.db")
 # 15 minutes inactivity timeout (15 * 60 = 900 seconds)
 SESSION_TIMEOUT_SECONDS = 15 * 60
 
-# Standard A4 at 300 DPI (210mm x 297mm)
-A4_WIDTH = 2480
-A4_HEIGHT = 3508
+# Optimized A4 size
+A4_WIDTH = 1800
+A4_HEIGHT = 2550
 
 DEPOTS = [
     "LNG",
@@ -48,24 +48,24 @@ USERS = {
 }
 
 
-def get_fonts(title_size=5000, section_size=2500, body_size=2500, small_size=2500):
+def get_fonts(
+    title_size=200,
+    section_size=110,
+    body_size=85,
+    small_size=65
+):
     bold_candidates = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         os.path.join(APP_DIR, "DejaVuSans-Bold.ttf"),
         r"C:\Windows\Fonts\arialbd.ttf",
         r"C:\Windows\Fonts\calibrib.ttf",
-        r"C:\Windows\Fonts\segoeuib.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
     ]
+
     regular_candidates = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         os.path.join(APP_DIR, "DejaVuSans.ttf"),
         r"C:\Windows\Fonts\arial.ttf",
         r"C:\Windows\Fonts\calibri.ttf",
-        r"C:\Windows\Fonts\segoeui.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
     ]
 
     bold_path = next((p for p in bold_candidates if os.path.exists(p)), None)
@@ -79,26 +79,8 @@ def get_fonts(title_size=5000, section_size=2500, body_size=2500, small_size=250
             ImageFont.truetype(regular_path, small_size),
         )
 
-    for root_dir in ["/usr/share/fonts", r"C:\Windows\Fonts"]:
-        if os.path.exists(root_dir):
-            found_ttf = []
-            for r_path, _, files in os.walk(root_dir):
-                for fn in files:
-                    if fn.lower().endswith(".ttf"):
-                        found_ttf.append(os.path.join(r_path, fn))
-            if found_ttf:
-                bold_any = next((f for f in found_ttf if "bold" in f.lower()), found_ttf[0])
-                reg_any = found_ttf[0]
-                return (
-                    ImageFont.truetype(bold_any, title_size),
-                    ImageFont.truetype(bold_any, section_size),
-                    ImageFont.truetype(reg_any, body_size),
-                    ImageFont.truetype(reg_any, small_size),
-                )
-
     fallback = ImageFont.load_default()
     return fallback, fallback, fallback, fallback
-
 
 def format_display_date(date_str):
     try:
@@ -901,7 +883,7 @@ def _draw_row(draw, x_left, y, col_widths, row_h, values, font, fill="#FFFFFF"):
     cur_x = x_left
     for idx, w in enumerate(col_widths):
         box = (cur_x, y, cur_x + w, y + row_h)
-        draw.rectangle(box, outline="#0284C7", width=3, fill=fill)
+        draw.rectangle(box, outline="#0284C7", width=5, fill=fill)
         _draw_centered_text(draw, box, values[idx], font, fill="#000000")
         cur_x += w
 
@@ -915,7 +897,7 @@ def _new_a4_page(depot, disp_date):
     top_y = 65
     table_w = A4_WIDTH - (2 * margin_x)
 
-    depot_h = 145
+    depot_h = 220
     draw.rectangle(
         (margin_x, top_y, margin_x + table_w, top_y + depot_h),
         outline="#0284C7",
@@ -931,7 +913,7 @@ def _new_a4_page(depot, disp_date):
     )
 
     meta_y = top_y + depot_h
-    meta_h = 120
+    meta_h = 160
 
     draw.rectangle(
         (margin_x, meta_y, margin_x + table_w, meta_y + meta_h),
@@ -965,17 +947,22 @@ def _stamp_page_numbers(pages):
 
 
 def build_a4_pages(depot, report_date, d_df, i_df, summary_df):
-    _, f_sec, f_body, _ = get_fonts()
+    f_title, f_sec, f_body, f_small = get_fonts(
+    title_size=200,
+    section_size=110,
+    body_size=85,
+    small_size=65
+)
     disp_date = format_display_date(report_date)
     bottom_limit = A4_HEIGHT - 155
 
     pages = []
     img, draw, x_left, table_w, y = _new_a4_page(depot, disp_date)
 
-    section_h = 112
-    header_h = 104
-    row_h = 102
-    gap_h = 44
+    section_h = 150
+    header_h = 125
+    row_h = 120
+    gap_h = 50
 
     col4 = [
         int(table_w * 0.34),
@@ -1107,7 +1094,7 @@ def pages_to_pdf_bytes(pages):
         format="PDF",
         save_all=True,
         append_images=other_pages,
-        resolution=300.0,
+        resolution=600.0,
     )
     pdf_buf.seek(0)
     return pdf_buf.getvalue()
