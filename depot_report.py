@@ -49,10 +49,10 @@ USERS = {
 
 
 def get_fonts(
-    title_size=200,
-    section_size=110,
-    body_size=85,
-    small_size=65
+    title_size=260,
+    section_size=140,
+    body_size=110,
+    small_size=80
 ):
     bold_candidates = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -960,8 +960,8 @@ def build_a4_pages(depot, report_date, d_df, i_df, summary_df):
     img, draw, x_left, table_w, y = _new_a4_page(depot, disp_date)
 
     section_h = 150
-    header_h = 125
-    row_h = 120
+    header_h = 145
+    row_h = 140
     gap_h = 50
 
     col4 = [
