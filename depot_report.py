@@ -245,7 +245,7 @@ def inject_ocean_fresh_no_black_bg_css():
             color: #000000 !important;
         }
 
-        /* Ocean Fresh Sky Blue (#0284C7) buttons with white text (never black) */
+        /* Default app buttons: Ocean Fresh Sky Blue (#0284C7) with white text */
         .stButton > button,
         .stDownloadButton > button,
         button[kind="primary"],
@@ -273,6 +273,29 @@ def inject_ocean_fresh_no_black_bg_css():
             background-color: #0369A1 !important;
             border-color: #075985 !important;
             color: #FFFFFF !important;
+        }
+
+        /* Login page submit button: White background (#FFFFFF) with Black text (#000000) */
+        .login-page-scope [data-testid="stFormSubmitButton"] > button,
+        .login-page-scope .stButton > button {
+            background-color: #FFFFFF !important;
+            color: #000000 !important;
+            border: 2px solid #000000 !important;
+            border-radius: 8px;
+            font-weight: 800 !important;
+        }
+
+        .login-page-scope [data-testid="stFormSubmitButton"] > button *,
+        .login-page-scope [data-testid="stFormSubmitButton"] > button p,
+        .login-page-scope [data-testid="stFormSubmitButton"] > button span,
+        .login-page-scope .stButton > button * {
+            color: #000000 !important;
+        }
+
+        .login-page-scope [data-testid="stFormSubmitButton"] > button:hover,
+        .login-page-scope .stButton > button:hover {
+            background-color: #F1F5F9 !important;
+            color: #000000 !important;
         }
 
         @media (max-width: 768px) {
@@ -999,6 +1022,7 @@ def show_login():
         st.warning("15 minute tak inactive rehne ke kaaran session logout ho gaya hai. Kripya dobara login karein.")
         st.session_state.session_expired_msg = False
 
+    st.markdown('<div class="login-page-scope">', unsafe_allow_html=True)
     st.markdown(
         """
         <div class="depot-header-banner">
@@ -1025,6 +1049,7 @@ def show_login():
                 st.rerun()
             else:
                 st.error("Galat Login ID ya Password.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def main():
