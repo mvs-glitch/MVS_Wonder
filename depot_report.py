@@ -48,7 +48,7 @@ USERS = {
 }
 
 
-def get_fonts(title_size=54, section_size=38, body_size=32, small_size=28):
+def get_fonts(title_size=76, section_size=52, body_size=44, small_size=36):
     bold_candidates = [
         r"C:\Windows\Fonts\arialbd.ttf",
         r"C:\Windows\Fonts\calibrib.ttf",
@@ -888,11 +888,11 @@ def _new_a4_page(depot, disp_date):
     img = Image.new("RGB", (A4_WIDTH, A4_HEIGHT), "#FFFFFF")
     draw = ImageDraw.Draw(img)
 
-    margin_x = 85
-    top_y = 85
+    margin_x = 70
+    top_y = 70
     table_w = A4_WIDTH - (2 * margin_x)
 
-    depot_h = 100
+    depot_h = 122
     draw.rectangle(
         (margin_x, top_y, margin_x + table_w, top_y + depot_h),
         outline="#0284C7",
@@ -908,7 +908,7 @@ def _new_a4_page(depot, disp_date):
     )
 
     meta_y = top_y + depot_h
-    meta_h = 88
+    meta_h = 104
 
     draw.rectangle(
         (margin_x, meta_y, margin_x + table_w, meta_y + meta_h),
@@ -931,7 +931,7 @@ def _stamp_page_numbers(pages):
     total_p = len(pages)
     for idx, img in enumerate(pages, start=1):
         draw = ImageDraw.Draw(img)
-        footer_box = (85, A4_HEIGHT - 110, A4_WIDTH - 85, A4_HEIGHT - 45)
+        footer_box = (70, A4_HEIGHT - 115, A4_WIDTH - 70, A4_HEIGHT - 40)
         _draw_centered_text(
             draw,
             footer_box,
@@ -944,15 +944,15 @@ def _stamp_page_numbers(pages):
 def build_a4_pages(depot, report_date, d_df, i_df, summary_df):
     _, f_sec, f_body, _ = get_fonts()
     disp_date = format_display_date(report_date)
-    bottom_limit = A4_HEIGHT - 140
+    bottom_limit = A4_HEIGHT - 145
 
     pages = []
     img, draw, x_left, table_w, y = _new_a4_page(depot, disp_date)
 
-    section_h = 78
-    header_h = 72
-    row_h = 70
-    gap_h = 48
+    section_h = 96
+    header_h = 88
+    row_h = 86
+    gap_h = 46
 
     col4 = [
         int(table_w * 0.34),
