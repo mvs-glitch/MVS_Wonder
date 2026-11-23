@@ -85,18 +85,18 @@ def format_display_date(date_str):
         return str(date_str)
 
 
-def inject_ocean_fresh_no_black_bg_css():
+def inject_esampark_theme_css():
     st.markdown(
         """
         <style>
-        /* Ocean Fresh Theme: BG #ECFDF5 (Mint White), Button #0284C7 (Sky Blue), Font #000000 (Black) */
+        /* Clean White & Mint Surface with #000000 Black Font and eSampark 2.0 / Ocean Fresh Accents */
         html, body, .stApp,
         [data-testid="stAppViewContainer"],
         [data-testid="stHeader"],
         [data-testid="stDecoration"],
         [data-testid="stToolbar"],
         [data-testid="stBottomBlockContainer"] {
-            background-color: #ECFDF5 !important;
+            background-color: #FFFFFF !important;
             color: #000000 !important;
         }
 
@@ -106,16 +106,102 @@ def inject_ocean_fresh_no_black_bg_css():
         }
 
         .block-container {
-            padding-top: 1.1rem;
+            padding-top: 1.0rem;
             padding-bottom: 2.2rem;
             max-width: 100%;
-            background-color: #ECFDF5 !important;
+            background-color: #FFFFFF !important;
         }
 
-        .depot-header-banner {
+        /* Top Brand Strip (RK GROUP left, WONDER CEMENT right) */
+        .brand-top-strip {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 18px;
             background-color: #FFFFFF !important;
+            border-bottom: 1px solid #E2E8F0;
+            margin-bottom: 10px;
+        }
+
+        .rk-group-mark {
+            color: #9A7B3E !important;
+            font-size: 24px;
+            font-weight: 500;
+            line-height: 1.05;
+            letter-spacing: 0.5px;
+        }
+
+        .rk-group-sub {
+            color: #9A7B3E !important;
+            font-size: 9px;
+            letter-spacing: 2.2px;
+            font-weight: 700;
+        }
+
+        .wonder-mark {
+            color: #DC2626 !important;
+            font-size: 16px;
+            font-weight: 900;
+            letter-spacing: 0.6px;
+            text-align: right;
+            line-height: 1.1;
+        }
+
+        .wonder-tagline {
+            color: #DC2626 !important;
+            font-size: 8px;
+            letter-spacing: 1.2px;
+            font-weight: 700;
+            text-align: right;
+        }
+
+        /* eSampark 2.0 Hero Title */
+        .esampark-hero {
+            text-align: center;
+            margin-top: 6px;
+            margin-bottom: 12px;
+        }
+
+        .esampark-title {
+            font-size: 40px;
+            font-weight: 700;
+            color: #DC2626 !important;
+            letter-spacing: -0.5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .esampark-badge {
+            background-color: #B91C1C !important;
+            color: #FFFFFF !important;
+            font-size: 28px;
+            font-weight: 800;
+            padding: 2px 10px;
+            border-radius: 4px;
+            line-height: 1.15;
+        }
+
+        .esampark-subtitle {
+            color: #475569 !important;
+            font-size: 12px;
+            margin-top: 2px;
+            font-weight: 600;
+        }
+
+        .get-started-heading {
+            text-align: center;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1E293B !important;
+            margin: 10px 0 14px 0;
+        }
+
+        /* Internal Top Header Bar */
+        .internal-topbar {
+            background-color: #ECFDF5 !important;
             border: 1.5px solid #0284C7;
-            padding: 14px 20px;
+            padding: 12px 18px;
             border-radius: 10px;
             display: flex;
             justify-content: space-between;
@@ -125,17 +211,16 @@ def inject_ocean_fresh_no_black_bg_css():
             margin-bottom: 14px;
         }
 
-        .depot-header-title {
+        .internal-topbar-title {
             color: #000000 !important;
-            font-size: 21px;
+            font-size: 20px;
             font-weight: 800;
-            letter-spacing: 0.4px;
         }
 
-        .depot-header-role {
+        .internal-role-pill {
             background-color: #E0F2FE !important;
             color: #000000 !important;
-            font-size: 12.5px;
+            font-size: 12px;
             font-weight: 700;
             padding: 5px 12px;
             border-radius: 999px;
@@ -143,7 +228,7 @@ def inject_ocean_fresh_no_black_bg_css():
         }
 
         .section-card-title {
-            background-color: #FFFFFF !important;
+            background-color: #ECFDF5 !important;
             color: #000000 !important;
             padding: 8px 14px;
             border-left: 5px solid #0284C7;
@@ -157,7 +242,7 @@ def inject_ocean_fresh_no_black_bg_css():
 
         .stTabs [data-baseweb="tab-list"] {
             gap: 8px;
-            background-color: #FFFFFF !important;
+            background-color: #ECFDF5 !important;
             padding: 6px;
             border-radius: 10px;
             border: 1px solid #0284C7;
@@ -167,7 +252,7 @@ def inject_ocean_fresh_no_black_bg_css():
             border-radius: 8px;
             padding: 8px 16px;
             font-weight: 700;
-            background-color: #ECFDF5 !important;
+            background-color: #FFFFFF !important;
             color: #000000 !important;
         }
 
@@ -181,7 +266,7 @@ def inject_ocean_fresh_no_black_bg_css():
             color: #FFFFFF !important;
         }
 
-        /* Remove dark/black backgrounds on all inputs, number inputs, date inputs & selects */
+        /* Soft ice-blue / white inputs with pure black text */
         [data-testid="stTextInput"] div,
         [data-testid="stNumberInput"] div,
         [data-testid="stDateInput"] div,
@@ -198,19 +283,19 @@ def inject_ocean_fresh_no_black_bg_css():
         div[data-baseweb="popover"],
         ul[role="listbox"],
         li[role="option"] {
-            background-color: #FFFFFF !important;
+            background-color: #EBF1FA !important;
             color: #000000 !important;
         }
 
         input, textarea, select {
-            background-color: #FFFFFF !important;
+            background-color: #EBF1FA !important;
             color: #000000 !important;
             caret-color: #000000 !important;
-            border-color: #0284C7 !important;
+            border-color: #CBD5E1 !important;
         }
 
         input::placeholder, textarea::placeholder {
-            color: #334155 !important;
+            color: #475569 !important;
             opacity: 1 !important;
         }
 
@@ -233,11 +318,11 @@ def inject_ocean_fresh_no_black_bg_css():
         div[data-testid="stVerticalBlockBorderWrapper"] {
             background-color: #FFFFFF !important;
             border-radius: 10px;
-            border: 1.5px solid #0284C7 !important;
+            border: 1.5px solid #CBD5E1 !important;
         }
 
         div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
-            border: 1px solid #A7F3D0;
+            border: 1px solid #E2E8F0;
             padding: 6px 8px;
             display: flex;
             align-items: center;
@@ -245,7 +330,7 @@ def inject_ocean_fresh_no_black_bg_css():
             color: #000000 !important;
         }
 
-        /* Default app buttons: Ocean Fresh Sky Blue (#0284C7) with white text */
+        /* Internal action buttons: Sky Blue (#0284C7) with white text */
         .stButton > button,
         .stDownloadButton > button,
         button[kind="primary"],
@@ -275,35 +360,48 @@ def inject_ocean_fresh_no_black_bg_css():
             color: #FFFFFF !important;
         }
 
-        /* Login page submit button: White background (#FFFFFF) with Black text (#000000) */
-        .login-page-scope [data-testid="stFormSubmitButton"] > button,
-        .login-page-scope .stButton > button {
-            background-color: #FFFFFF !important;
-            color: #000000 !important;
-            border: 2px solid #000000 !important;
-            border-radius: 8px;
-            font-weight: 800 !important;
+        /* eSampark Sign In Button: Crimson Red (#B91C1C) with white text */
+        .esampark-login-scope [data-testid="stFormSubmitButton"] > button,
+        .esampark-login-scope .stButton > button {
+            background-color: #B91C1C !important;
+            color: #FFFFFF !important;
+            border: 1.5px solid #991B1B !important;
+            border-radius: 6px;
+            font-weight: 700 !important;
+            padding: 0.55rem 1rem !important;
         }
 
-        .login-page-scope [data-testid="stFormSubmitButton"] > button *,
-        .login-page-scope [data-testid="stFormSubmitButton"] > button p,
-        .login-page-scope [data-testid="stFormSubmitButton"] > button span,
-        .login-page-scope .stButton > button * {
-            color: #000000 !important;
+        .esampark-login-scope [data-testid="stFormSubmitButton"] > button *,
+        .esampark-login-scope [data-testid="stFormSubmitButton"] > button p,
+        .esampark-login-scope [data-testid="stFormSubmitButton"] > button span,
+        .esampark-login-scope .stButton > button * {
+            color: #FFFFFF !important;
         }
 
-        .login-page-scope [data-testid="stFormSubmitButton"] > button:hover,
-        .login-page-scope .stButton > button:hover {
-            background-color: #F1F5F9 !important;
-            color: #000000 !important;
+        .esampark-login-scope [data-testid="stFormSubmitButton"] > button:hover,
+        .esampark-login-scope .stButton > button:hover {
+            background-color: #991B1B !important;
+            color: #FFFFFF !important;
+        }
+
+        .esampark-footer {
+            text-align: center;
+            color: #475569 !important;
+            font-size: 12px;
+            margin-top: 24px;
+            padding-top: 10px;
+            border-top: 1px solid #E2E8F0;
         }
 
         @media (max-width: 768px) {
-            .depot-header-title {
-                font-size: 17px;
+            .esampark-title {
+                font-size: 30px;
             }
-            .depot-header-role {
-                font-size: 11.5px;
+            .esampark-badge {
+                font-size: 22px;
+            }
+            .internal-topbar-title {
+                font-size: 17px;
             }
             .stButton > button, .stDownloadButton > button {
                 min-height: 42px;
@@ -319,6 +417,24 @@ def inject_ocean_fresh_no_black_bg_css():
             }
         }
         </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_brand_header():
+    st.markdown(
+        """
+        <div class="brand-top-strip">
+            <div>
+                <div class="rk-group-mark">RK</div>
+                <div class="rk-group-sub">GROUP</div>
+            </div>
+            <div>
+                <div class="wonder-mark">WONDER<br>CEMENT</div>
+                <div class="wonder-tagline">FARQ NAZAR AAYEGA</div>
+            </div>
+        </div>
         """,
         unsafe_allow_html=True,
     )
@@ -1022,23 +1138,53 @@ def show_login():
         st.warning("15 minute tak inactive rehne ke kaaran session logout ho gaya hai. Kripya dobara login karein.")
         st.session_state.session_expired_msg = False
 
-    st.markdown('<div class="login-page-scope">', unsafe_allow_html=True)
+    st.markdown('<div class="esampark-login-scope">', unsafe_allow_html=True)
+    render_brand_header()
+
     st.markdown(
         """
-        <div class="depot-header-banner">
-            <span class="depot-header-title">DEPOT REPORT SYSTEM</span>
-            <span class="depot-header-role">OCEAN FRESH</span>
+        <div class="esampark-hero">
+            <div class="esampark-title">
+                <span>eSampark</span>
+                <span class="esampark-badge">2.0</span>
+            </div>
+            <div class="esampark-subtitle">Digital Platform For Depot &amp; Distribution Operations</div>
         </div>
+        <div class="get-started-heading">Get's Started</div>
         """,
         unsafe_allow_html=True,
     )
-    with st.container(border=True):
-        st.subheader("Depot Agent Login")
 
+    _, mid_col, _ = st.columns([1, 1.5, 1])
+    with mid_col:
         with st.form("login_form"):
-            uid_input = st.text_input("Login ID", placeholder="Enter your Login ID")
-            pwd_input = st.text_input("Password", type="password", placeholder="Enter Password")
-            submitted = st.form_submit_button("LOGIN", use_container_width=True)
+            uid_input = st.text_input(
+                "Login ID",
+                placeholder="Enter your Login ID",
+                label_visibility="collapsed",
+            )
+            pwd_input = st.text_input(
+                "Password",
+                type="password",
+                placeholder="Enter Password",
+                label_visibility="collapsed",
+            )
+
+            opt_l, opt_r = st.columns([1, 1])
+            with opt_l:
+                st.checkbox("Remember me?", value=False)
+            with opt_r:
+                st.markdown(
+                    '<div style="text-align:right;color:#64748B;font-size:13px;padding-top:6px;">Forgot your password ?</div>',
+                    unsafe_allow_html=True,
+                )
+
+            submitted = st.form_submit_button("Sign In", use_container_width=True)
+
+        st.markdown(
+            '<div style="margin-top:10px;color:#334155;font-size:13px;font-weight:600;">Get Support</div>',
+            unsafe_allow_html=True,
+        )
 
         if submitted:
             uid = uid_input.strip().lower().replace(" ", "")
@@ -1049,12 +1195,17 @@ def show_login():
                 st.rerun()
             else:
                 st.error("Galat Login ID ya Password.")
+
+    st.markdown(
+        '<div class="esampark-footer">Copyright © All rights reserved</div>',
+        unsafe_allow_html=True,
+    )
     st.markdown("</div>", unsafe_allow_html=True)
 
 
 def main():
-    st.set_page_config(page_title="Depot Report System", layout="wide")
-    inject_ocean_fresh_no_black_bg_css()
+    st.set_page_config(page_title="eSampark 2.0 - Depot Report System", layout="wide")
+    inject_esampark_theme_css()
     conn = get_connection()
 
     if "user" not in st.session_state:
@@ -1074,11 +1225,13 @@ def main():
         else f"DEPOT INCHARGE - {assigned_depot}"
     )
 
+    render_brand_header()
+
     st.markdown(
         f"""
-        <div class="depot-header-banner">
-            <span class="depot-header-title">DEPOT REPORT SYSTEM</span>
-            <span class="depot-header-role">{role_text}</span>
+        <div class="internal-topbar">
+            <span class="internal-topbar-title">eSampark 2.0 &bull; DEPOT REPORT SYSTEM</span>
+            <span class="internal-role-pill">{role_text}</span>
         </div>
         """,
         unsafe_allow_html=True,
