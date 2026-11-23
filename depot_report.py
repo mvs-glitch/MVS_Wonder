@@ -89,7 +89,7 @@ def inject_esampark_theme_css():
     st.markdown(
         """
         <style>
-        /* Clean White & Mint Surface with #000000 Black Font and eSampark 2.0 / Ocean Fresh Accents */
+        /* Clean White & Mint Surface with #000000 Black Font and MVS & Wonder/ Ocean Fresh Accents */
         html, body, .stApp,
         [data-testid="stAppViewContainer"],
         [data-testid="stHeader"],
@@ -123,7 +123,7 @@ def inject_esampark_theme_css():
             margin-bottom: 10px;
         }
 
-        .rk-group-mark {
+        .Mangilal Vijayvargiya & Sons-mark {
             color: #9A7B3E !important;
             font-size: 24px;
             font-weight: 500;
@@ -131,7 +131,7 @@ def inject_esampark_theme_css():
             letter-spacing: 0.5px;
         }
 
-        .rk-group-sub {
+        .Mangilal Vijayvargiya & Sons-sub {
             color: #9A7B3E !important;
             font-size: 9px;
             letter-spacing: 2.2px;
@@ -155,7 +155,7 @@ def inject_esampark_theme_css():
             text-align: right;
         }
 
-        /* eSampark 2.0 Hero Title */
+        /* MVS & WonderHero Title */
         .esampark-hero {
             text-align: center;
             margin-top: 6px;
@@ -427,8 +427,8 @@ def render_brand_header():
         """
         <div class="brand-top-strip">
             <div>
-                <div class="rk-group-mark">RK</div>
-                <div class="rk-group-sub">GROUP</div>
+                <div class="Mangilal Vijayvargiya & Sons-mark">RK</div>
+                <div class="Mangilal Vijayvargiya & Sons-sub">GROUP</div>
             </div>
             <div>
                 <div class="wonder-mark">WONDER<br>CEMENT</div>
@@ -1204,7 +1204,7 @@ def show_login():
 
 
 def main():
-    st.set_page_config(page_title="eSampark 2.0 - Depot Report System", layout="wide")
+    st.set_page_config(page_title="MVS & Wonder- Depot Report System", layout="wide")
     inject_esampark_theme_css()
     conn = get_connection()
 
@@ -1230,7 +1230,7 @@ def main():
     st.markdown(
         f"""
         <div class="internal-topbar">
-            <span class="internal-topbar-title">eSampark 2.0 &bull; DEPOT REPORT SYSTEM</span>
+            <span class="internal-topbar-title">MVS & Wonder&bull; DEPOT REPORT SYSTEM</span>
             <span class="internal-role-pill">{role_text}</span>
         </div>
         """,
