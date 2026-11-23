@@ -85,7 +85,7 @@ def format_display_date(date_str):
         return str(date_str)
 
 
-def inject_esampark_theme_css():
+def inject_MVS & Wonder_theme_css():
     st.markdown(
         """
         <style>
@@ -112,7 +112,7 @@ def inject_esampark_theme_css():
             background-color: #FFFFFF !important;
         }
 
-        /* Top Brand Strip (RK GROUP left, WONDER CEMENT right) */
+        /* Top Brand Strip (Mnagilal Vijayvargiya & Sons left, WONDER CEMENT right) */
         .brand-top-strip {
             display: flex;
             justify-content: space-between;
@@ -156,13 +156,13 @@ def inject_esampark_theme_css():
         }
 
         /* MVS & WonderHero Title */
-        .esampark-hero {
+        .MVS & Wonder-hero {
             text-align: center;
             margin-top: 6px;
             margin-bottom: 12px;
         }
 
-        .esampark-title {
+        .MVS & Wonder-title {
             font-size: 40px;
             font-weight: 700;
             color: #DC2626 !important;
@@ -172,7 +172,7 @@ def inject_esampark_theme_css():
             gap: 6px;
         }
 
-        .esampark-badge {
+        .MVS & Wonder-badge {
             background-color: #B91C1C !important;
             color: #FFFFFF !important;
             font-size: 28px;
@@ -182,7 +182,7 @@ def inject_esampark_theme_css():
             line-height: 1.15;
         }
 
-        .esampark-subtitle {
+        .MVS & Wonder-subtitle {
             color: #475569 !important;
             font-size: 12px;
             margin-top: 2px;
@@ -360,9 +360,9 @@ def inject_esampark_theme_css():
             color: #FFFFFF !important;
         }
 
-        /* eSampark Sign In Button: Crimson Red (#B91C1C) with white text */
-        .esampark-login-scope [data-testid="stFormSubmitButton"] > button,
-        .esampark-login-scope .stButton > button {
+        /* MVS & Wonder Sign In Button: Crimson Red (#B91C1C) with white text */
+        .MVS & Wonder-login-scope [data-testid="stFormSubmitButton"] > button,
+        .MVS & Wonder-login-scope .stButton > button {
             background-color: #B91C1C !important;
             color: #FFFFFF !important;
             border: 1.5px solid #991B1B !important;
@@ -371,20 +371,20 @@ def inject_esampark_theme_css():
             padding: 0.55rem 1rem !important;
         }
 
-        .esampark-login-scope [data-testid="stFormSubmitButton"] > button *,
-        .esampark-login-scope [data-testid="stFormSubmitButton"] > button p,
-        .esampark-login-scope [data-testid="stFormSubmitButton"] > button span,
-        .esampark-login-scope .stButton > button * {
+        .MVS & Wonder-login-scope [data-testid="stFormSubmitButton"] > button *,
+        .MVS & Wonder-login-scope [data-testid="stFormSubmitButton"] > button p,
+        .MVS & Wonder-login-scope [data-testid="stFormSubmitButton"] > button span,
+        .MVS & Wonder-login-scope .stButton > button * {
             color: #FFFFFF !important;
         }
 
-        .esampark-login-scope [data-testid="stFormSubmitButton"] > button:hover,
-        .esampark-login-scope .stButton > button:hover {
+        .MVS & Wonder-login-scope [data-testid="stFormSubmitButton"] > button:hover,
+        .MVS & Wonder-login-scope .stButton > button:hover {
             background-color: #991B1B !important;
             color: #FFFFFF !important;
         }
 
-        .esampark-footer {
+        .MVS & Wonder-footer {
             text-align: center;
             color: #475569 !important;
             font-size: 12px;
@@ -394,10 +394,10 @@ def inject_esampark_theme_css():
         }
 
         @media (max-width: 768px) {
-            .esampark-title {
+            .MVS & Wonder-title {
                 font-size: 30px;
             }
-            .esampark-badge {
+            .MVS & Wonder-badge {
                 font-size: 22px;
             }
             .internal-topbar-title {
@@ -1138,17 +1138,17 @@ def show_login():
         st.warning("15 minute tak inactive rehne ke kaaran session logout ho gaya hai. Kripya dobara login karein.")
         st.session_state.session_expired_msg = False
 
-    st.markdown('<div class="esampark-login-scope">', unsafe_allow_html=True)
+    st.markdown('<div class="MVS & Wonder-login-scope">', unsafe_allow_html=True)
     render_brand_header()
 
     st.markdown(
         """
-        <div class="esampark-hero">
-            <div class="esampark-title">
-                <span>eSampark</span>
-                <span class="esampark-badge">2.0</span>
+        <div class="MVS & Wonder-hero">
+            <div class="MVS & Wonder-title">
+                <span>MVS & Wonder</span>
+                <span class="MVS & Wonder-badge">2.0</span>
             </div>
-            <div class="esampark-subtitle">Digital Platform For Depot &amp; Distribution Operations</div>
+            <div class="MVS & Wonder-subtitle">Digital Platform For Depot &amp; Distribution Operations</div>
         </div>
         <div class="get-started-heading">Get's Started</div>
         """,
@@ -1197,7 +1197,7 @@ def show_login():
                 st.error("Galat Login ID ya Password.")
 
     st.markdown(
-        '<div class="esampark-footer">Copyright © All rights reserved</div>',
+        '<div class="MVS & Wonder-footer">Copyright © All rights reserved</div>',
         unsafe_allow_html=True,
     )
     st.markdown("</div>", unsafe_allow_html=True)
@@ -1205,7 +1205,7 @@ def show_login():
 
 def main():
     st.set_page_config(page_title="MVS & Wonder- Depot Report System", layout="wide")
-    inject_esampark_theme_css()
+    inject_MVS & Wonder_theme_css()
     conn = get_connection()
 
     if "user" not in st.session_state:
