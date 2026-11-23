@@ -14,7 +14,7 @@ DB_FILE = os.path.join(APP_DIR, "depot_data.db")
 # 15 minutes inactivity timeout (15 * 60 = 900 seconds)
 SESSION_TIMEOUT_SECONDS = 15 * 60
 
-# Standard A8 proportion at 600 DPI (148mm x 210mm)
+# Standard A8 proportion at 200 DPI (148mm x 210mm)
 A8_WIDTH = 874
 A8_HEIGHT = 1240
 
