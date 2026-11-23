@@ -14,9 +14,9 @@ DB_FILE = os.path.join(APP_DIR, "depot_data.db")
 # 15 minutes inactivity timeout (15 * 60 = 900 seconds)
 SESSION_TIMEOUT_SECONDS = 15 * 60
 
-# Standard A8 proportion at 150 DPI (52mm x 74mm)
-A8_WIDTH = 309
-A8_HEIGHT = 437
+# Standard A4 proportion at 300 DPI (74mm x 105mm)
+A4_WIDTH = 437
+A4_HEIGHT = 620
 
 DEPOTS = [
     "LNG",
