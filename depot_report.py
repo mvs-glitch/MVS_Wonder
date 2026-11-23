@@ -48,7 +48,7 @@ USERS = {
 }
 
 
-def get_fonts(title_size=500, section_size=250, body_size=250, small_size=250):
+def get_fonts(title_size=5000, section_size=2500, body_size=2500, small_size=2500):
     bold_candidates = [
         os.path.join(APP_DIR, "DejaVuSans-Bold.ttf"),
         r"C:\Windows\Fonts\arialbd.ttf",
