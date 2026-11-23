@@ -48,18 +48,24 @@ USERS = {
 }
 
 
-def get_fonts(title_size=76, section_size=52, body_size=44, small_size=36):
+def get_fonts(title_size=92, section_size=64, body_size=54, small_size=42):
     bold_candidates = [
+        os.path.join(APP_DIR, "DejaVuSans-Bold.ttf"),
         r"C:\Windows\Fonts\arialbd.ttf",
         r"C:\Windows\Fonts\calibrib.ttf",
         r"C:\Windows\Fonts\segoeuib.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
     ]
     regular_candidates = [
+        os.path.join(APP_DIR, "DejaVuSans.ttf"),
         r"C:\Windows\Fonts\arial.ttf",
         r"C:\Windows\Fonts\calibri.ttf",
         r"C:\Windows\Fonts\segoeui.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
     ]
 
     bold_path = next((p for p in bold_candidates if os.path.exists(p)), None)
@@ -72,6 +78,23 @@ def get_fonts(title_size=76, section_size=52, body_size=44, small_size=36):
             ImageFont.truetype(regular_path, body_size),
             ImageFont.truetype(regular_path, small_size),
         )
+
+    for root_dir in ["/usr/share/fonts", r"C:\Windows\Fonts"]:
+        if os.path.exists(root_dir):
+            found_ttf = []
+            for r_path, _, files in os.walk(root_dir):
+                for fn in files:
+                    if fn.lower().endswith(".ttf"):
+                        found_ttf.append(os.path.join(r_path, fn))
+            if found_ttf:
+                bold_any = next((f for f in found_ttf if "bold" in f.lower()), found_ttf[0])
+                reg_any = found_ttf[0]
+                return (
+                    ImageFont.truetype(bold_any, title_size),
+                    ImageFont.truetype(bold_any, section_size),
+                    ImageFont.truetype(reg_any, body_size),
+                    ImageFont.truetype(reg_any, small_size),
+                )
 
     fallback = ImageFont.load_default()
     return fallback, fallback, fallback, fallback
@@ -888,11 +911,11 @@ def _new_a4_page(depot, disp_date):
     img = Image.new("RGB", (A4_WIDTH, A4_HEIGHT), "#FFFFFF")
     draw = ImageDraw.Draw(img)
 
-    margin_x = 70
-    top_y = 70
+    margin_x = 65
+    top_y = 65
     table_w = A4_WIDTH - (2 * margin_x)
 
-    depot_h = 122
+    depot_h = 145
     draw.rectangle(
         (margin_x, top_y, margin_x + table_w, top_y + depot_h),
         outline="#0284C7",
@@ -908,7 +931,7 @@ def _new_a4_page(depot, disp_date):
     )
 
     meta_y = top_y + depot_h
-    meta_h = 104
+    meta_h = 120
 
     draw.rectangle(
         (margin_x, meta_y, margin_x + table_w, meta_y + meta_h),
@@ -931,7 +954,7 @@ def _stamp_page_numbers(pages):
     total_p = len(pages)
     for idx, img in enumerate(pages, start=1):
         draw = ImageDraw.Draw(img)
-        footer_box = (70, A4_HEIGHT - 115, A4_WIDTH - 70, A4_HEIGHT - 40)
+        footer_box = (65, A4_HEIGHT - 125, A4_WIDTH - 65, A4_HEIGHT - 40)
         _draw_centered_text(
             draw,
             footer_box,
@@ -944,15 +967,15 @@ def _stamp_page_numbers(pages):
 def build_a4_pages(depot, report_date, d_df, i_df, summary_df):
     _, f_sec, f_body, _ = get_fonts()
     disp_date = format_display_date(report_date)
-    bottom_limit = A4_HEIGHT - 145
+    bottom_limit = A4_HEIGHT - 155
 
     pages = []
     img, draw, x_left, table_w, y = _new_a4_page(depot, disp_date)
 
-    section_h = 96
-    header_h = 88
-    row_h = 86
-    gap_h = 46
+    section_h = 112
+    header_h = 104
+    row_h = 102
+    gap_h = 44
 
     col4 = [
         int(table_w * 0.34),
