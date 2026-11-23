@@ -85,11 +85,11 @@ def format_display_date(date_str):
         return str(date_str)
 
 
-def inject_esampark_theme_css():
+def inject_mvs_wonder_theme_css():
     st.markdown(
         """
         <style>
-        /* Clean White & Mint Surface with #000000 Black Font and eSampark 2.0 / Ocean Fresh Accents */
+        /* Clean White & Mint Surface with #000000 Black Font and MVS & Wonder Accents */
         html, body, .stApp,
         [data-testid="stAppViewContainer"],
         [data-testid="stHeader"],
@@ -112,7 +112,7 @@ def inject_esampark_theme_css():
             background-color: #FFFFFF !important;
         }
 
-        /* Top Brand Strip (RK GROUP left, WONDER CEMENT right) */
+        /* Top Brand Strip (Mangilal Vijayvargiya & Sons left, WONDER CEMENT right) */
         .brand-top-strip {
             display: flex;
             justify-content: space-between;
@@ -121,20 +121,22 @@ def inject_esampark_theme_css():
             background-color: #FFFFFF !important;
             border-bottom: 1px solid #E2E8F0;
             margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
-        .rk-group-mark {
+        .mvs-brand-mark {
             color: #9A7B3E !important;
-            font-size: 24px;
-            font-weight: 500;
-            line-height: 1.05;
-            letter-spacing: 0.5px;
+            font-size: 20px;
+            font-weight: 700;
+            line-height: 1.1;
+            letter-spacing: 0.4px;
         }
 
-        .rk-group-sub {
-            color: #9A7B3E !important;
-            font-size: 9px;
-            letter-spacing: 2.2px;
+        .mvs-brand-sub {
+            color: #475569 !important;
+            font-size: 10px;
+            letter-spacing: 1.4px;
             font-weight: 700;
         }
 
@@ -155,45 +157,48 @@ def inject_esampark_theme_css():
             text-align: right;
         }
 
-        /* eSampark 2.0 Hero Title */
-        .esampark-hero {
+        /* MVS & Wonder Hero Title */
+        .mvs-hero {
             text-align: center;
             margin-top: 6px;
             margin-bottom: 12px;
         }
 
-        .esampark-title {
-            font-size: 40px;
-            font-weight: 700;
-            color: #DC2626 !important;
-            letter-spacing: -0.5px;
+        .mvs-title {
+            font-size: 38px;
+            font-weight: 800;
+            color: #000000 !important;
+            letter-spacing: -0.4px;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
-        .esampark-badge {
-            background-color: #B91C1C !important;
-            color: #FFFFFF !important;
-            font-size: 28px;
+        .mvs-badge {
+            background-color: #E0F2FE !important;
+            color: #000000 !important;
+            font-size: 26px;
             font-weight: 800;
-            padding: 2px 10px;
-            border-radius: 4px;
+            padding: 2px 12px;
+            border-radius: 6px;
+            border: 1.5px solid #0284C7;
             line-height: 1.15;
         }
 
-        .esampark-subtitle {
-            color: #475569 !important;
-            font-size: 12px;
-            margin-top: 2px;
+        .mvs-subtitle {
+            color: #334155 !important;
+            font-size: 12.5px;
+            margin-top: 4px;
             font-weight: 600;
         }
 
         .get-started-heading {
             text-align: center;
             font-size: 16px;
-            font-weight: 600;
-            color: #1E293B !important;
+            font-weight: 700;
+            color: #000000 !important;
             margin: 10px 0 14px 0;
         }
 
@@ -295,7 +300,7 @@ def inject_esampark_theme_css():
         }
 
         input::placeholder, textarea::placeholder {
-            color: #475569 !important;
+            color: #334155 !important;
             opacity: 1 !important;
         }
 
@@ -360,33 +365,33 @@ def inject_esampark_theme_css():
             color: #FFFFFF !important;
         }
 
-        /* eSampark Sign In Button: Crimson Red (#B91C1C) with white text */
-        .esampark-login-scope [data-testid="stFormSubmitButton"] > button,
-        .esampark-login-scope .stButton > button {
-            background-color: #B91C1C !important;
-            color: #FFFFFF !important;
-            border: 1.5px solid #991B1B !important;
+        /* Login Sign In Button: Blue background (#0284C7) with Black font (#000000) */
+        .mvs-login-scope [data-testid="stFormSubmitButton"] > button,
+        .mvs-login-scope .stButton > button {
+            background-color: #0284C7 !important;
+            color: #000000 !important;
+            border: 2px solid #000000 !important;
             border-radius: 6px;
-            font-weight: 700 !important;
+            font-weight: 800 !important;
             padding: 0.55rem 1rem !important;
         }
 
-        .esampark-login-scope [data-testid="stFormSubmitButton"] > button *,
-        .esampark-login-scope [data-testid="stFormSubmitButton"] > button p,
-        .esampark-login-scope [data-testid="stFormSubmitButton"] > button span,
-        .esampark-login-scope .stButton > button * {
-            color: #FFFFFF !important;
+        .mvs-login-scope [data-testid="stFormSubmitButton"] > button *,
+        .mvs-login-scope [data-testid="stFormSubmitButton"] > button p,
+        .mvs-login-scope [data-testid="stFormSubmitButton"] > button span,
+        .mvs-login-scope .stButton > button * {
+            color: #000000 !important;
         }
 
-        .esampark-login-scope [data-testid="stFormSubmitButton"] > button:hover,
-        .esampark-login-scope .stButton > button:hover {
-            background-color: #991B1B !important;
-            color: #FFFFFF !important;
+        .mvs-login-scope [data-testid="stFormSubmitButton"] > button:hover,
+        .mvs-login-scope .stButton > button:hover {
+            background-color: #0369A1 !important;
+            color: #000000 !important;
         }
 
-        .esampark-footer {
+        .mvs-footer {
             text-align: center;
-            color: #475569 !important;
+            color: #000000 !important;
             font-size: 12px;
             margin-top: 24px;
             padding-top: 10px;
@@ -394,11 +399,14 @@ def inject_esampark_theme_css():
         }
 
         @media (max-width: 768px) {
-            .esampark-title {
-                font-size: 30px;
+            .mvs-brand-mark {
+                font-size: 16px;
             }
-            .esampark-badge {
-                font-size: 22px;
+            .mvs-title {
+                font-size: 28px;
+            }
+            .mvs-badge {
+                font-size: 20px;
             }
             .internal-topbar-title {
                 font-size: 17px;
@@ -427,8 +435,8 @@ def render_brand_header():
         """
         <div class="brand-top-strip">
             <div>
-                <div class="rk-group-mark">RK</div>
-                <div class="rk-group-sub">GROUP</div>
+                <div class="mvs-brand-mark">Mangilal Vijayvargiya &amp; Sons</div>
+                <div class="mvs-brand-sub">AUTHORIZED DISTRIBUTION PARTNER</div>
             </div>
             <div>
                 <div class="wonder-mark">WONDER<br>CEMENT</div>
@@ -1138,17 +1146,17 @@ def show_login():
         st.warning("15 minute tak inactive rehne ke kaaran session logout ho gaya hai. Kripya dobara login karein.")
         st.session_state.session_expired_msg = False
 
-    st.markdown('<div class="esampark-login-scope">', unsafe_allow_html=True)
+    st.markdown('<div class="mvs-login-scope">', unsafe_allow_html=True)
     render_brand_header()
 
     st.markdown(
         """
-        <div class="esampark-hero">
-            <div class="esampark-title">
-                <span>eSampark</span>
-                <span class="esampark-badge">2.0</span>
+        <div class="mvs-hero">
+            <div class="mvs-title">
+                <span>MVS &amp; Wonder</span>
+                <span class="mvs-badge">DEPOT PORTAL</span>
             </div>
-            <div class="esampark-subtitle">Digital Platform For Depot &amp; Distribution Operations</div>
+            <div class="mvs-subtitle">Mangilal Vijayvargiya &amp; Sons &bull; Depot &amp; Distribution Operations</div>
         </div>
         <div class="get-started-heading">Get's Started</div>
         """,
@@ -1170,21 +1178,8 @@ def show_login():
                 label_visibility="collapsed",
             )
 
-            opt_l, opt_r = st.columns([1, 1])
-            with opt_l:
-                st.checkbox("Remember me?", value=False)
-            with opt_r:
-                st.markdown(
-                    '<div style="text-align:right;color:#64748B;font-size:13px;padding-top:6px;">Forgot your password ?</div>',
-                    unsafe_allow_html=True,
-                )
-
+            st.checkbox("Remember me?", value=False)
             submitted = st.form_submit_button("Sign In", use_container_width=True)
-
-        st.markdown(
-            '<div style="margin-top:10px;color:#334155;font-size:13px;font-weight:600;">Get Support</div>',
-            unsafe_allow_html=True,
-        )
 
         if submitted:
             uid = uid_input.strip().lower().replace(" ", "")
@@ -1197,15 +1192,15 @@ def show_login():
                 st.error("Galat Login ID ya Password.")
 
     st.markdown(
-        '<div class="esampark-footer">Copyright © All rights reserved</div>',
+        '<div class="mvs-footer">Copyright © All rights reserved</div>',
         unsafe_allow_html=True,
     )
     st.markdown("</div>", unsafe_allow_html=True)
 
 
 def main():
-    st.set_page_config(page_title="eSampark 2.0 - Depot Report System", layout="wide")
-    inject_esampark_theme_css()
+    st.set_page_config(page_title="MVS & Wonder - Depot Report System", layout="wide")
+    inject_mvs_wonder_theme_css()
     conn = get_connection()
 
     if "user" not in st.session_state:
@@ -1230,7 +1225,7 @@ def main():
     st.markdown(
         f"""
         <div class="internal-topbar">
-            <span class="internal-topbar-title">eSampark 2.0 &bull; DEPOT REPORT SYSTEM</span>
+            <span class="internal-topbar-title">MVS &amp; Wonder &bull; DEPOT REPORT SYSTEM</span>
             <span class="internal-role-pill">{role_text}</span>
         </div>
         """,
