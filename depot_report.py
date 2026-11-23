@@ -14,9 +14,9 @@ DB_FILE = os.path.join(APP_DIR, "depot_data.db")
 # 15 minutes inactivity timeout (15 * 60 = 900 seconds)
 SESSION_TIMEOUT_SECONDS = 15 * 60
 
-# Optimized A4 size
-A4_WIDTH = 1800
-A4_HEIGHT = 2550
+# Standard A5 proportion at 150 DPI (148mm x 210mm)
+A5_WIDTH = 874
+A5_HEIGHT = 1240
 
 DEPOTS = [
     "LNG",
@@ -48,33 +48,57 @@ USERS = {
 }
 
 
-def get_fonts(
-    title_size=180,
-    section_size=100,
-    body_size=70,
-    small_size=50,
-):
-    try:
-        bold_font = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-        regular_font = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+def get_fonts(title_size=42, section_size=30, body_size=25, small_size=20):
+    bold_candidates = [
+        os.path.join(APP_DIR, "DejaVuSans-Bold.ttf"),
+        r"C:\Windows\Fonts\arialbd.ttf",
+        r"C:\Windows\Fonts\calibrib.ttf",
+        r"C:\Windows\Fonts\segoeuib.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
+    ]
+    regular_candidates = [
+        os.path.join(APP_DIR, "DejaVuSans.ttf"),
+        r"C:\Windows\Fonts\arial.ttf",
+        r"C:\Windows\Fonts\calibri.ttf",
+        r"C:\Windows\Fonts\segoeui.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+    ]
 
+    bold_path = next((p for p in bold_candidates if os.path.exists(p)), None)
+    regular_path = next((p for p in regular_candidates if os.path.exists(p)), None)
+
+    if bold_path and regular_path:
         return (
-            ImageFont.truetype(bold_font, title_size),
-            ImageFont.truetype(bold_font, section_size),
-            ImageFont.truetype(regular_font, body_size),
-            ImageFont.truetype(regular_font, small_size),
+            ImageFont.truetype(bold_path, title_size),
+            ImageFont.truetype(bold_path, section_size),
+            ImageFont.truetype(regular_path, body_size),
+            ImageFont.truetype(regular_path, small_size),
         )
 
-    except Exception as e:
-        print("FONT ERROR:", e)
-        return (
-            ImageFont.load_default(),
-            ImageFont.load_default(),
-            ImageFont.load_default(),
-            ImageFont.load_default(),
-        )
+    for root_dir in ["/usr/share/fonts", r"C:\Windows\Fonts"]:
+        if os.path.exists(root_dir):
+            found_ttf = []
+            for r_path, _, files in os.walk(root_dir):
+                for fn in files:
+                    if fn.lower().endswith(".ttf"):
+                        found_ttf.append(os.path.join(r_path, fn))
+            if found_ttf:
+                bold_any = next((f for f in found_ttf if "bold" in f.lower()), found_ttf[0])
+                reg_any = found_ttf[0]
+                return (
+                    ImageFont.truetype(bold_any, title_size),
+                    ImageFont.truetype(bold_any, section_size),
+                    ImageFont.truetype(reg_any, body_size),
+                    ImageFont.truetype(reg_any, small_size),
+                )
+
     fallback = ImageFont.load_default()
     return fallback, fallback, fallback, fallback
+
 
 def format_display_date(date_str):
     try:
@@ -877,25 +901,25 @@ def _draw_row(draw, x_left, y, col_widths, row_h, values, font, fill="#FFFFFF"):
     cur_x = x_left
     for idx, w in enumerate(col_widths):
         box = (cur_x, y, cur_x + w, y + row_h)
-        draw.rectangle(box, outline="#0284C7", width=5, fill=fill)
+        draw.rectangle(box, outline="#0284C7", width=2, fill=fill)
         _draw_centered_text(draw, box, values[idx], font, fill="#000000")
         cur_x += w
 
 
-def _new_a4_page(depot, disp_date):
+def _new_a5_page(depot, disp_date):
     f_title, f_sec, _, _ = get_fonts()
-    img = Image.new("RGB", (A4_WIDTH, A4_HEIGHT), "#FFFFFF")
+    img = Image.new("RGB", (A5_WIDTH, A5_HEIGHT), "#FFFFFF")
     draw = ImageDraw.Draw(img)
 
-    margin_x = 65
-    top_y = 65
-    table_w = A4_WIDTH - (2 * margin_x)
+    margin_x = 26
+    top_y = 26
+    table_w = A5_WIDTH - (2 * margin_x)
 
-    depot_h = 220
+    depot_h = 62
     draw.rectangle(
         (margin_x, top_y, margin_x + table_w, top_y + depot_h),
         outline="#0284C7",
-        width=4,
+        width=3,
         fill="#ECFDF5",
     )
     _draw_centered_text(
@@ -907,12 +931,11 @@ def _new_a4_page(depot, disp_date):
     )
 
     meta_y = top_y + depot_h
-    meta_h = 160
-
+    meta_h = 50
     draw.rectangle(
         (margin_x, meta_y, margin_x + table_w, meta_y + meta_h),
         outline="#0284C7",
-        width=4,
+        width=3,
         fill="#FFFFFF",
     )
     _draw_centered_text(
@@ -930,7 +953,7 @@ def _stamp_page_numbers(pages):
     total_p = len(pages)
     for idx, img in enumerate(pages, start=1):
         draw = ImageDraw.Draw(img)
-        footer_box = (65, A4_HEIGHT - 125, A4_WIDTH - 65, A4_HEIGHT - 40)
+        footer_box = (26, A5_HEIGHT - 50, A5_WIDTH - 26, A5_HEIGHT - 14)
         _draw_centered_text(
             draw,
             footer_box,
@@ -940,23 +963,18 @@ def _stamp_page_numbers(pages):
         )
 
 
-def build_a4_pages(depot, report_date, d_df, i_df, summary_df):
-    f_title, f_sec, f_body, f_small = get_fonts(
-    title_size=200,
-    section_size=110,
-    body_size=85,
-    small_size=65
-)
+def build_a5_pages(depot, report_date, d_df, i_df, summary_df):
+    _, f_sec, f_body, _ = get_fonts()
     disp_date = format_display_date(report_date)
-    bottom_limit = A4_HEIGHT - 155
+    bottom_limit = A5_HEIGHT - 62
 
     pages = []
-    img, draw, x_left, table_w, y = _new_a4_page(depot, disp_date)
+    img, draw, x_left, table_w, y = _new_a5_page(depot, disp_date)
 
-    section_h = 150
-    header_h = 145
-    row_h = 140
-    gap_h = 50
+    section_h = 46
+    header_h = 42
+    row_h = 40
+    gap_h = 18
 
     col4 = [
         int(table_w * 0.34),
@@ -977,11 +995,11 @@ def build_a4_pages(depot, report_date, d_df, i_df, summary_df):
         nonlocal img, draw, y
         if y + needed_h > bottom_limit:
             pages.append(img)
-            img, draw, x_left, table_w, y = _new_a4_page(depot, disp_date)
+            img, draw, x_left, table_w, y = _new_a5_page(depot, disp_date)
 
     ensure_space(gap_h + section_h + header_h + row_h)
     y += gap_h
-    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#0284C7", width=3, fill="#ECFDF5")
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#0284C7", width=2, fill="#ECFDF5")
     _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "DISPATCH (OUT)", f_sec)
     y += section_h
 
@@ -1007,7 +1025,7 @@ def build_a4_pages(depot, report_date, d_df, i_df, summary_df):
 
     ensure_space(gap_h + section_h + header_h + row_h)
     y += gap_h
-    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#0284C7", width=3, fill="#E0F2FE")
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#0284C7", width=2, fill="#E0F2FE")
     _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "INWARD TRUCKS (IN)", f_sec)
     y += section_h
 
@@ -1034,7 +1052,7 @@ def build_a4_pages(depot, report_date, d_df, i_df, summary_df):
     needed_summary = gap_h + section_h + header_h + (len(summary_df) * row_h)
     ensure_space(needed_summary)
     y += gap_h
-    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#0284C7", width=3, fill="#ECFDF5")
+    draw.rectangle((x_left, y, x_left + table_w, y + section_h), outline="#0284C7", width=2, fill="#ECFDF5")
     _draw_centered_text(draw, (x_left, y, x_left + table_w, y + section_h), "BRAND STOCK SUMMARY", f_sec)
     y += section_h
 
@@ -1072,7 +1090,7 @@ def pages_to_zip_bytes(pages, depot, report_date):
     with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for idx, p_img in enumerate(pages, start=1):
             p_bytes = pages_to_jpg_bytes(p_img)
-            zf.writestr(f"{depot}_{report_date}_page_{idx}_of_{len(pages)}.jpg", p_bytes)
+            zf.writestr(f"{depot}_{report_date}_A5_page_{idx}_of_{len(pages)}.jpg", p_bytes)
     zip_buf.seek(0)
     return zip_buf.getvalue()
 
@@ -1088,7 +1106,7 @@ def pages_to_pdf_bytes(pages):
         format="PDF",
         save_all=True,
         append_images=other_pages,
-        resolution=600.0,
+        resolution=150.0,
     )
     pdf_buf.seek(0)
     return pdf_buf.getvalue()
@@ -1592,7 +1610,7 @@ def main():
         conn, depot, gen_date, gen_p_op, gen_pl_op, gen_x_op
     )
 
-    a4_pages = build_a4_pages(
+    a5_pages = build_a5_pages(
         depot, gen_date, d_df_gen, i_df_gen, summary_df_gen
     )
 
@@ -1600,7 +1618,7 @@ def main():
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown(
             f"**Report Date:** {format_display_date(gen_date)} ({gen_date}) | "
-            f"**Depot:** {depot} | **A4 Pages:** {len(a4_pages)}"
+            f"**Depot:** {depot} | **A5 Pages:** {len(a5_pages)}"
         )
 
     b_print, b_excel, b_jpg, b_pdf = st.columns([1.4, 1.4, 1.5, 1.4])
@@ -1628,28 +1646,28 @@ def main():
         )
 
     with b_jpg:
-        if len(a4_pages) == 1:
+        if len(a5_pages) == 1:
             st.download_button(
-                label="Export JPG (A4)",
-                data=pages_to_jpg_bytes(a4_pages[0]),
-                file_name=f"{depot}_{gen_date}_A4_page_1.jpg",
+                label="Export JPG (A5)",
+                data=pages_to_jpg_bytes(a5_pages[0]),
+                file_name=f"{depot}_{gen_date}_A5_page_1.jpg",
                 mime="image/jpeg",
                 use_container_width=True,
             )
         else:
             st.download_button(
-                label=f"Export JPG ({len(a4_pages)} Pages ZIP)",
-                data=pages_to_zip_bytes(a4_pages, depot, gen_date),
-                file_name=f"{depot}_{gen_date}_A4_pages.zip",
+                label=f"Export JPG ({len(a5_pages)} Pages ZIP)",
+                data=pages_to_zip_bytes(a5_pages, depot, gen_date),
+                file_name=f"{depot}_{gen_date}_A5_pages.zip",
                 mime="application/zip",
                 use_container_width=True,
             )
 
     with b_pdf:
         st.download_button(
-            label="Export PDF (A4)",
-            data=pages_to_pdf_bytes(a4_pages),
-            file_name=f"{depot}_{gen_date}_A4_report.pdf",
+            label="Export PDF (A5)",
+            data=pages_to_pdf_bytes(a5_pages),
+            file_name=f"{depot}_{gen_date}_A5_report.pdf",
             mime="application/pdf",
             use_container_width=True,
         )
